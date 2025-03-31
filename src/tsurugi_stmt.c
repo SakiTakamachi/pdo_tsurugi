@@ -6,6 +6,7 @@
 #include "php.h"
 #include "php_ini.h"
 #include "zend_exceptions.h"
+#include "zend_portability.h"
 #include "ext/pdo/php_pdo.h"
 #include "ext/pdo/php_pdo_driver.h"
 #include "php_pdo_tsurugi.h"
@@ -194,38 +195,225 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 		return 1;
 	}
 
+	int32_t ival;
+	int64_t lval;
+	float fval;
+	double dval;
+	const char *cval;
+
 	switch (atom_type) {
 		case TSURUGI_FFI_ATOM_TYPE_BOOLEAN:
 			/* Not implemented */
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_INT4:
-			int32_t ival;
 			rc = tsurugi_ffi_sql_query_result_fetch_int4(H->context, S->result, &ival);
+			if (rc != 0) {
+				goto fail;
+			}
 			ZVAL_LONG(result, ival);
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_INT8:
-			int64_t lval;
 			rc = tsurugi_ffi_sql_query_result_fetch_int8(H->context, S->result, &lval);
+			if (rc != 0) {
+				goto fail;
+			}
 			ZVAL_LONG(result, lval);
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_FLOAT4:
-			float fval;
-			tsurugi_ffi_sql_query_result_fetch_float4(H->context, S->result, &fval);
+			rc = tsurugi_ffi_sql_query_result_fetch_float4(H->context, S->result, &fval);
+			if (rc != 0) {
+				goto fail;
+			}
 			ZVAL_DOUBLE(result, fval);
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_FLOAT8:
-			double dval;
-			tsurugi_ffi_sql_query_result_fetch_float8(H->context, S->result, &dval);
+			rc = tsurugi_ffi_sql_query_result_fetch_float8(H->context, S->result, &dval);
+			if (rc != 0) {
+				goto fail;
+			}
 			ZVAL_DOUBLE(result, dval);
 			break;
 
+		case TSURUGI_FFI_ATOM_TYPE_DECIMAL:
+			TsurugiFfiByteArrayHandle bytes;
+			uint32_t bytes_size;
+			int32_t exponent;
+			rc = tsurugi_ffi_sql_query_result_fetch_decimal(H->context, S->result, &bytes, &bytes_size, &lval, &exponent);
+			if (rc != 0) {
+				goto fail;
+			}
+
+			char *buf = NULL;
+			uint64_t *v = NULL;
+			char *tmp_str;
+			size_t len = 0;
+			bool is_negative = false;
+			if (bytes_size > 0) {
+				is_negative = (int8_t) bytes[0] < 0;
+
+				TsurugiFfiByteArrayHandle b_ptr = bytes;
+				TsurugiFfiByteArrayHandle b_end = bytes + bytes_size;
+				size_t vsize = ((bytes_size + sizeof(uint32_t) - 1) / sizeof(uint32_t));
+				v = emalloc(vsize * sizeof(uint64_t));
+				bool has_leftover = bytes_size % sizeof(uint32_t);
+				size_t bulk_loop = has_leftover ? vsize - 1 : vsize;
+				for (size_t i = 0; i < bulk_loop; i++) {
+					b_end -= sizeof(uint32_t);
+					memcpy(&v[i], b_end, sizeof(uint32_t));
+#ifndef WORDS_BIGENDIAN
+					v[i] = ZEND_BYTES_SWAP64(v[i]);
+#endif
+					if (is_negative) {
+						v[i] = ~v[i];
+					}
+					v[i] >>= 32;
+				}
+
+				size_t max_vindex = vsize - 1;
+				if (has_leftover) {
+					v[max_vindex] = 0;
+#ifdef WORDS_BIGENDIAN
+					while (b_end > bytes) {
+						b_end--;
+						v[max_vindex] <<= 8;
+						if (is_negative) {
+							v[max_vindex] |= (~*b_end & 0xFF);
+						} else {
+							v[max_vindex] |= *b_end;
+						}
+					}
+#else
+					while (b_end > bytes) {
+						v[max_vindex] <<= 8;
+						if (is_negative) {
+							v[max_vindex] |= (~*bytes & 0xFF);
+						} else {
+							v[max_vindex] |= *bytes;
+						}
+						bytes++;
+					}
+#endif
+				}
+
+				if (is_negative) {
+					v[0] += 1;
+				}
+
+				while (v[max_vindex] == 0 && max_vindex > 0) {
+					max_vindex--;
+				}
+
+				buf = emalloc(vsize * 10);
+				char *tmp_ptr = buf;
+				char *tmp_last = buf + vsize * 10 - 1;
+				do {
+					uint64_t carry = 0;
+					for (size_t i = max_vindex; i > 0; i--) {
+						carry = v[i] % 10;
+						v[i - 1] += carry * 0x100000000;
+						v[i] /= 10;
+					}
+					*tmp_last-- = (v[0] % 10) + '0';
+					v[0] /= 10;
+					len++;
+					while (v[max_vindex] == 0 && max_vindex > 0) {
+						max_vindex--;
+					}
+					if (max_vindex == 0 && v[0] == 0) {
+						break;
+					}
+				} while (1);
+
+				tmp_str = tmp_last + 1;
+			} else {
+				if (lval < 0) {
+					is_negative = true;
+					lval = -lval;
+				}
+				buf = emalloc(32);
+				tmp_str = buf + 31;
+				while (lval > 0) {
+					*tmp_str-- = (lval % 10) + '0';
+					lval /= 10;
+					len++;
+				}
+				tmp_str++;
+			}
+
+			size_t leading_zeros = 0;
+			size_t trailing_zeros = 0;
+			ssize_t before_decimal_point_len = 0;
+			bool has_decimal_point = false;
+			if (exponent > 0){
+				trailing_zeros = exponent;
+			} else if (exponent < 0) {
+				leading_zeros = -exponent >= len ? -exponent - len + 1 : 0;
+				before_decimal_point_len = len + exponent;
+				has_decimal_point = true;
+			}
+
+			zend_string *str;
+			char *str_ptr;
+			bool has_sign_str = is_negative;
+
+			str = zend_string_alloc(len + leading_zeros + trailing_zeros + has_decimal_point + has_sign_str, 0);
+			str_ptr = ZSTR_VAL(str);
+
+			if (is_negative) {
+				*str_ptr++ = '-';
+			}
+
+			if (leading_zeros > 0) {
+				if (before_decimal_point_len < 0) {
+					memset(str_ptr, '0', leading_zeros + before_decimal_point_len);
+					str_ptr += leading_zeros + before_decimal_point_len;
+					leading_zeros = -before_decimal_point_len;
+					*str_ptr++ = '.';
+				}
+				memset(str_ptr, '0', leading_zeros);
+				str_ptr += leading_zeros;
+			}
+
+			if (has_decimal_point) {
+				if (before_decimal_point_len > 0) {
+					memcpy(str_ptr, tmp_str, before_decimal_point_len);
+					str_ptr += before_decimal_point_len;
+					tmp_str += before_decimal_point_len;
+					len -= before_decimal_point_len;
+				}
+				*str_ptr++ = '.';
+			}
+
+			if (len > 0) {
+				memcpy(str_ptr, tmp_str, len);
+				str_ptr += len;
+			}
+
+			if (trailing_zeros > 0) {
+				memset(str_ptr, '0', trailing_zeros);
+				str_ptr += trailing_zeros;
+			}
+
+			*str_ptr = '\0';
+			ZVAL_STR(result, str);
+
+			if (buf) {
+				efree(buf);	
+			}
+			if (v) {
+				efree(v);
+			}
+			break;
+
 		case TSURUGI_FFI_ATOM_TYPE_CHARACTER:
-			const char *cval;
-			tsurugi_ffi_sql_query_result_fetch_character(H->context, S->result, &cval);
+			rc = tsurugi_ffi_sql_query_result_fetch_character(H->context, S->result, &cval);
+			if (rc != 0) {
+				goto fail;
+			}
 			ZVAL_STRING(result, cval);
 			break;
 	}
