@@ -490,6 +490,18 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 			snprintf(time_point_with_tz_offset_ptr, 6, "%02d:%02d", tz_offset / 60, tz_offset % 60);
 			ZVAL_STRINGL(result, time_point_with_tz_buf, time_point_with_tz_len + 6);
 			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_BIT:
+		case TSURUGI_FFI_ATOM_TYPE_DATETIME_INTERVAL:
+		case TSURUGI_FFI_ATOM_TYPE_TIME_OF_DAY_WITH_TIME_ZONE:
+		case TSURUGI_FFI_ATOM_TYPE_CLOB:
+		case TSURUGI_FFI_ATOM_TYPE_BLOB:
+			pdo_raise_impl_error(stmt->dbh, stmt, "HY000", "Unsupported type");
+			return 0;
+
+		default:
+			pdo_raise_impl_error(stmt->dbh, stmt, "HY000", "Unknown type");
+			return 0;
 	}
 
 	return 1;
