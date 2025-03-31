@@ -11,6 +11,7 @@
 #include "ext/pdo/php_pdo_driver.h"
 #include "php_pdo_tsurugi.h"
 #include "php_pdo_tsurugi_int.h"
+#include <time.h>
 
 static void php_tsurugi_free_col_metadata(pdo_stmt_t *stmt)
 {
@@ -200,6 +201,9 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 	float fval;
 	double dval;
 	const char *cval;
+	struct tm *t;
+	uint32_t nano_sec;
+	int32_t tz_offset;
 
 	switch (atom_type) {
 		case TSURUGI_FFI_ATOM_TYPE_BOOLEAN:
@@ -415,6 +419,59 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 				goto fail;
 			}
 			ZVAL_STRING(result, cval);
+			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_DATE:
+			rc = tsurugi_ffi_sql_query_result_fetch_date(H->context, S->result, &lval);
+			if (rc != 0) {
+				goto fail;
+			}
+			lval *= 86400;
+			t = gmtime((time_t *) &lval);
+			char date_buf[16];
+			size_t date_len = strftime(date_buf, sizeof(date_buf), "%Y-%m-%d", t);
+			ZVAL_STRINGL(result, date_buf, date_len);
+			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_TIME_OF_DAY:
+			rc = tsurugi_ffi_sql_query_result_fetch_time_of_day(H->context, S->result, &lval);
+			if (rc != 0) {
+				goto fail;
+			}
+			lval /= 1000 * 1000 * 1000;
+			char time_buf[16];
+			snprintf(time_buf, sizeof(time_buf), "%02ld:%02ld:%02ld", lval / 3600, (lval % 3600) / 60, lval % 60);
+			ZVAL_STRINGL(result, time_buf, strlen(time_buf));
+			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_TIME_POINT:
+			rc = tsurugi_ffi_sql_query_result_fetch_time_point(H->context, S->result, &lval, &nano_sec);
+			if (rc != 0) {
+				goto fail;
+			}
+			t = gmtime((time_t *) &lval);
+			char time_point_buf[32];
+			size_t time_point_len = strftime(time_point_buf, sizeof(time_point_buf), "%Y-%m-%d %H:%M:%S", t);
+			ZVAL_STRINGL(result, time_point_buf, time_point_len);
+			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_TIME_POINT_WITH_TIME_ZONE:
+			rc = tsurugi_ffi_sql_query_result_fetch_time_point_with_time_zone(H->context, S->result, &lval, &nano_sec, &tz_offset);
+			if (rc != 0) {
+				goto fail;
+			}
+			t = gmtime((time_t *) &lval);
+			char time_point_with_tz_buf[32];
+			size_t time_point_with_tz_len = strftime(time_point_with_tz_buf, sizeof(time_point_with_tz_buf), "%Y-%m-%d %H:%M:%S", t);
+
+			char *time_point_with_tz_offset_ptr = time_point_with_tz_buf + time_point_with_tz_len;
+			if (tz_offset >= 0) {
+				*time_point_with_tz_offset_ptr++ = '+';
+			} else {
+				*time_point_with_tz_offset_ptr++ = '-';
+			}
+			snprintf(time_point_with_tz_offset_ptr, 6, "%02d:%02d", tz_offset / 60, tz_offset % 60);
+			ZVAL_STRINGL(result, time_point_with_tz_buf, time_point_with_tz_len + 6);
 			break;
 	}
 
