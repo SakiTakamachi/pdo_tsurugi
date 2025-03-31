@@ -39,7 +39,7 @@ void php_tsurugi_set_error(
 #define php_tsurugi_error_with_info(dbh, state, msg) php_tsurugi_set_error(dbh, NULL, ZEND_STRL(state), ZEND_STRL(msg))
 #define php_tsurugi_error_stmt_with_info(stmt, state, msg) php_tsurugi_set_error(stmt->dbh, stmt, ZEND_STRL(state), ZEND_STRL(msg))
 
-void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state, const size_t state_len);
+void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state);
 
 bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh, bool *instant_txn);
 bool php_tsurugi_commit_instant_txn(pdo_dbh_t *dbh);

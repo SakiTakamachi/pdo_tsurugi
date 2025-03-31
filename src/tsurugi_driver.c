@@ -13,7 +13,7 @@
 #include "php_pdo_tsurugi_int.h"
 
 
-void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state, const size_t state_len)
+void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state)
 {
 	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
 	if (php_tsurugi_has_error(dbh)) {

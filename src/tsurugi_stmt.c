@@ -142,7 +142,7 @@ static int pdo_tsurugi_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation o
 	bool next_row;
 	TsurugiFfiRc rc = tsurugi_ffi_sql_query_result_next_row(S->H->context, S->result, &next_row);
 	if (rc != 0) {
-		php_tsurugi_raise_impl_error(stmt->dbh, stmt, ZEND_STRL("HY000"));
+		php_tsurugi_raise_impl_error(stmt->dbh, stmt, "HY000");
 		return 0;
 	}
 	return next_row;
