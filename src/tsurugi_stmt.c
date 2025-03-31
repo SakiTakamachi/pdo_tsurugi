@@ -421,6 +421,23 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 			ZVAL_STRING(result, cval);
 			break;
 
+		case TSURUGI_FFI_ATOM_TYPE_OCTET:
+			TsurugiFfiByteArrayHandle octet;
+			size_t octet_size;
+			rc = tsurugi_ffi_sql_query_result_fetch_octet(H->context, S->result, &octet, &octet_size);
+			if (rc != 0) {
+				goto fail;
+			}
+			char *octet_buf = emalloc(octet_size * 2 + 1);
+			char *octet_ptr = octet_buf;
+			for (size_t i = 0; i < octet_size; i++) {
+				octet_ptr += sprintf(octet_ptr, "%02x", (unsigned char) octet[i]);
+			}
+			*octet_ptr = '\0';
+			ZVAL_STRING(result, octet_buf);
+			efree(octet_buf);
+			break;
+
 		case TSURUGI_FFI_ATOM_TYPE_DATE:
 			rc = tsurugi_ffi_sql_query_result_fetch_date(H->context, S->result, &lval);
 			if (rc != 0) {
