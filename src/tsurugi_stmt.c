@@ -340,10 +340,15 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 				}
 				buf = emalloc(32);
 				tmp_str = buf + 31;
-				while (lval > 0) {
-					*tmp_str-- = (lval % 10) + '0';
-					lval /= 10;
+				if (UNEXPECTED(lval == 0 && exponent == 0)) {
+					*tmp_str-- = '0';
 					len++;
+				} else {
+					while (lval > 0) {
+						*tmp_str-- = (lval % 10) + '0';
+						lval /= 10;
+						len++;
+					}
 				}
 				tmp_str++;
 			}
@@ -382,14 +387,12 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 				str_ptr += leading_zeros;
 			}
 
-			if (has_decimal_point) {
-				if (before_decimal_point_len > 0) {
-					memcpy(str_ptr, tmp_str, before_decimal_point_len);
-					str_ptr += before_decimal_point_len;
-					tmp_str += before_decimal_point_len;
-					len -= before_decimal_point_len;
-				}
-				*str_ptr++ = '.';
+			if (has_decimal_point && before_decimal_point_len > 0) {
+				memcpy(str_ptr, tmp_str, before_decimal_point_len);
+				str_ptr += before_decimal_point_len;
+				tmp_str += before_decimal_point_len;
+				len -= before_decimal_point_len;
+				*str_ptr++ = '.';				
 			}
 
 			if (len > 0) {
