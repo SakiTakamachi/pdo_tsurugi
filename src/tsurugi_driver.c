@@ -59,12 +59,12 @@ void php_tsurugi_set_error(
 
 		char buf[512];
 		if (structured_code) {
-			snprintf(buf, sizeof(buf), "%s[%s] %s\n", error_name, structured_code, db_message);
+			snprintf(buf, sizeof(buf), "%s[%s] %s", error_name, structured_code, db_message);
 		} else {
-			snprintf(buf, sizeof(buf), "%s %s\n", error_name, db_message);
+			snprintf(buf, sizeof(buf), "%s %s", error_name, db_message);
 		}
 
-		err->length = strlen(buf) + 1; /* +1 for null terminator */
+		err->length = strlen(buf);
 		err->msg = pestrndup(buf, err->length, dbh->is_persistent);
 	} else if (msg && msg_len) {
 		err->length = msg_len;
