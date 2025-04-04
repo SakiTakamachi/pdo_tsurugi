@@ -40,8 +40,8 @@ namespace Pdo\Tsurugi
         public function addTime(string $name): NamedPlaceholders {}
         public function addTimeWithTimeZone(string $name): NamedPlaceholders {}
         public function addDate(string $name): NamedPlaceholders {}
-        public function addDateTime(string $name): NamedPlaceholders {}
-        public function addDateTimeWithTimeZone(string $name): NamedPlaceholders {}
+        public function addTimestamp(string $name): NamedPlaceholders {}
+        public function addTimestampWithTimeZone(string $name): NamedPlaceholders {}
     }
 
     final class PositionalPlaceholders
@@ -57,7 +57,7 @@ namespace Pdo\Tsurugi
         public function addTime(int $position): PositionalPlaceholders {}
         public function addTimeWithTimeZone(int $position): PositionalPlaceholders {}
         public function addDate(int $position): PositionalPlaceholders {}
-        public function addDateTime(int $position): PositionalPlaceholders {}
-        public function addDateTimeWithTimeZone(int $position): PositionalPlaceholders {}
+        public function addTimestamp(int $position): PositionalPlaceholders {}
+        public function addTimestampWithTimeZone(int $position): PositionalPlaceholders {}
     }
 }

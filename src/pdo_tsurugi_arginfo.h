@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 59535b754e0dd5d94309bb8d2d6edf3274bf1bd3 */
+ * Stub hash: 15ef318175d4ebf1817b88b73cf310291aad3be1 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean, 0, 1, Pdo\\Tsurugi\\\116amedPlaceholders, 0)
 	ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
@@ -25,9 +25,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDate arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean
 
-#define arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDateTime arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean
+#define arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTimestamp arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean
 
-#define arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDateTimeWithTimeZone arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean
+#define arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTimestampWithTimeZone arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean, 0, 1, Pdo\\Tsurugi\\PositionalPlaceholders, 0)
 	ZEND_ARG_TYPE_INFO(0, position, IS_LONG, 0)
@@ -53,9 +53,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDate arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean
 
-#define arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDateTime arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean
+#define arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTimestamp arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean
 
-#define arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDateTimeWithTimeZone arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean
+#define arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTimestampWithTimeZone arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addBoolean
 
 ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addBoolean);
 ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addInteger);
@@ -68,8 +68,8 @@ ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addDecimal);
 ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addTime);
 ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addTimeWithTimeZone);
 ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addDate);
-ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addDateTime);
-ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addDateTimeWithTimeZone);
+ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addTimestamp);
+ZEND_METHOD(Pdo_Tsurugi_NamedPlaceholders, addTimestampWithTimeZone);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addBoolean);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addInteger);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addBigInteger);
@@ -81,8 +81,8 @@ ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addDecimal);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addTime);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addTimeWithTimeZone);
 ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addDate);
-ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addDateTime);
-ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addDateTimeWithTimeZone);
+ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addTimestamp);
+ZEND_METHOD(Pdo_Tsurugi_PositionalPlaceholders, addTimestampWithTimeZone);
 
 static const zend_function_entry class_Pdo_Tsurugi_NamedPlaceholders_methods[] = {
 	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addBoolean, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addBoolean, ZEND_ACC_PUBLIC)
@@ -96,8 +96,8 @@ static const zend_function_entry class_Pdo_Tsurugi_NamedPlaceholders_methods[] =
 	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addTime, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addTimeWithTimeZone, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTimeWithTimeZone, ZEND_ACC_PUBLIC)
 	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addDate, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDate, ZEND_ACC_PUBLIC)
-	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addDateTime, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDateTime, ZEND_ACC_PUBLIC)
-	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addDateTimeWithTimeZone, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addDateTimeWithTimeZone, ZEND_ACC_PUBLIC)
+	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addTimestamp, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTimestamp, ZEND_ACC_PUBLIC)
+	ZEND_ME(Pdo_Tsurugi_NamedPlaceholders, addTimestampWithTimeZone, arginfo_class_Pdo_Tsurugi_NamedPlaceholders_addTimestampWithTimeZone, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -113,8 +113,8 @@ static const zend_function_entry class_Pdo_Tsurugi_PositionalPlaceholders_method
 	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addTime, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTime, ZEND_ACC_PUBLIC)
 	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addTimeWithTimeZone, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTimeWithTimeZone, ZEND_ACC_PUBLIC)
 	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addDate, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDate, ZEND_ACC_PUBLIC)
-	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addDateTime, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDateTime, ZEND_ACC_PUBLIC)
-	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addDateTimeWithTimeZone, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addDateTimeWithTimeZone, ZEND_ACC_PUBLIC)
+	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addTimestamp, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTimestamp, ZEND_ACC_PUBLIC)
+	ZEND_ME(Pdo_Tsurugi_PositionalPlaceholders, addTimestampWithTimeZone, arginfo_class_Pdo_Tsurugi_PositionalPlaceholders_addTimestampWithTimeZone, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 

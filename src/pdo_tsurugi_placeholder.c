@@ -82,8 +82,8 @@ PDO_TSURUGI_PLACEHOLDER_METHOD(addDecimal, PDO_TSURUGI_PLACEHOLDER_TYPE_DECIMAL)
 PDO_TSURUGI_PLACEHOLDER_METHOD(addTime, PDO_TSURUGI_PLACEHOLDER_TYPE_TIME)
 PDO_TSURUGI_PLACEHOLDER_METHOD(addTimeWithTimeZone, PDO_TSURUGI_PLACEHOLDER_TYPE_TIME_WITH_TIME_ZONE)
 PDO_TSURUGI_PLACEHOLDER_METHOD(addDate, PDO_TSURUGI_PLACEHOLDER_TYPE_DATE)
-PDO_TSURUGI_PLACEHOLDER_METHOD(addDateTime, PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME)
-PDO_TSURUGI_PLACEHOLDER_METHOD(addDateTimeWithTimeZone, PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME_WITH_TIME_ZONE)
+PDO_TSURUGI_PLACEHOLDER_METHOD(addTimestamp, PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP)
+PDO_TSURUGI_PLACEHOLDER_METHOD(addTimestampWithTimeZone, PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP_WITH_TIME_ZONE)
 
 bool pdo_tsurugi_register_placeholders(
 	pdo_dbh_t *dbh, zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type)
@@ -126,10 +126,10 @@ bool pdo_tsurugi_register_placeholders(
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE:
 			atom_type = TSURUGI_FFI_ATOM_TYPE_DATE;
 			break;
-		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME:
+		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP:
 			atom_type = TSURUGI_FFI_ATOM_TYPE_TIME_POINT;
 			break;
-		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME_WITH_TIME_ZONE:
+		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP_WITH_TIME_ZONE:
 			atom_type = TSURUGI_FFI_ATOM_TYPE_TIME_POINT_WITH_TIME_ZONE;
 			break;
 		EMPTY_SWITCH_DEFAULT_CASE();
@@ -269,14 +269,14 @@ bool pdo_tsurugi_register_parameter(
 				return false;
 			}
 			break;
-		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME:
+		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP:
 			if (php_tsurugi_get_timestamp(value, &timestamp, &timezone_offset)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_point(H->context, parameter_name_str, (int64_t) timestamp, 0, parameter_handle);
 			} else {
 				return false;
 			}
 			break;
-		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME_WITH_TIME_ZONE:
+		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP_WITH_TIME_ZONE:
 			if (php_tsurugi_get_timestamp(value, &timestamp, &timezone_offset)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_point_with_time_zone(
 					H->context, parameter_name_str, (int64_t) timestamp, 0, timezone_offset / 60, parameter_handle);
