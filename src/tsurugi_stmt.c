@@ -123,7 +123,7 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 
 		TsurugiFfiSqlParameterHandle *parameter_handles = emalloc(sizeof(TsurugiFfiSqlParameterHandle) * S->parameter_count);
 		for (size_t i = 0; i < S->parameter_count; i++) {
-			if (!pdo_tsurugi_register_parameter(stmt->dbh, S->parameters[i].name, &parameter_handles[i], S->parameters[i].type, S->parameters[i].value)) {
+			if (!pdo_tsurugi_register_parameter(stmt, S->parameters[i].name, &parameter_handles[i], S->parameters[i].type, S->parameters[i].value)) {
 				for (size_t j = 0; j < i; j++) {
 					tsurugi_ffi_sql_parameter_dispose(parameter_handles[j]);
 				}

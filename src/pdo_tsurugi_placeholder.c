@@ -139,58 +139,53 @@ bool pdo_tsurugi_register_placeholders(
 	return rc == 0;
 }
 
-static bool php_tsurugi_get_seconds_from_midnight(zval *value, zend_long *timestamp, int32_t *timezone_offset)
+static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, zval *value, zend_long *timestamp, int32_t *timezone_offset, bool time_only)
 {
 	zval datetime;
 	php_date_obj *date_obj;
 
-	if (Z_TYPE_P(value) != IS_STRING) {
+	if (Z_TYPE_P(value) == IS_LONG) {
+		*timestamp = Z_LVAL_P(value);
+		*timezone_offset = 0;
+		return true;
+	} else if (Z_TYPE_P(value) != IS_STRING) {
+		pdo_raise_impl_error(stmt->dbh, stmt, "HY105", "datetime must be string or integer");
 		return false;
 	}
 
+	zend_long lval;
+	if (is_numeric_string(Z_STRVAL_P(value), Z_STRLEN_P(value), &lval, NULL, 0)) {
+		*timestamp = lval;
+		*timezone_offset = 0;
+		return true;
+	}
+
 	object_init_ex(&datetime, php_date_get_date_ce());
-	if (php_date_initialize(Z_PHPDATE_P(&datetime), Z_STRVAL_P(value), Z_STRLEN_P(value), NULL, NULL, 0) == FAILURE) {
+	if (!php_date_initialize(Z_PHPDATE_P(&datetime), Z_STRVAL_P(value), Z_STRLEN_P(value), NULL, NULL, 0)) {
 		zval_ptr_dtor(&datetime);
+		pdo_raise_impl_error(stmt->dbh, stmt, "22007", "Could not parse as datetime");
 		return false;
 	}
 
 	date_obj = Z_PHPDATE_P(&datetime);
-	zend_long hours = date_obj->time->h;
-	zend_long minutes = date_obj->time->i;
-	zend_long seconds = date_obj->time->s;
-	*timestamp = (hours * 3600) + (minutes * 60) + seconds;
-	*timezone_offset = date_obj->time->z;
-	zval_ptr_dtor(&datetime);
-	return true;
-}
-
-static bool php_tsurugi_get_timestamp(zval *value, zend_long *timestamp, int32_t *timezone_offset)
-{
-	zval datetime;
-	php_date_obj *date_obj;
-
-	if (Z_TYPE_P(value) != IS_STRING) {
-		return false;
+	if (time_only) {
+		zend_long hours = date_obj->time->h;
+		zend_long minutes = date_obj->time->i;
+		zend_long seconds = date_obj->time->s;
+		*timestamp = (hours * 3600) + (minutes * 60) + seconds;
+	} else {
+		*timestamp = (zend_long) date_obj->time->sse;
 	}
-
-	object_init_ex(&datetime, php_date_get_date_ce());
-	if (php_date_initialize(Z_PHPDATE_P(&datetime), Z_STRVAL_P(value), Z_STRLEN_P(value), NULL, NULL, 0) == FAILURE) {
-		zval_ptr_dtor(&datetime);
-		return false;
-	}
-
-	date_obj = Z_PHPDATE_P(&datetime);
-	*timestamp = (zend_long) date_obj->time->sse;
 	*timezone_offset = date_obj->time->z;
 	zval_ptr_dtor(&datetime);
 	return true;
 }
 
 bool pdo_tsurugi_register_parameter(
-	pdo_dbh_t *dbh, zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value)
+	pdo_stmt_t *stmt, zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value)
 {
 	TsurugiFfiRc rc;
-	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
+	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) stmt->dbh->driver_data;
 	char *parameter_name_str = ZSTR_VAL(parameter_name) + 1;
 
 	if (Z_TYPE_P(value) == IS_NULL) {
@@ -248,14 +243,14 @@ bool pdo_tsurugi_register_parameter(
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DECIMAL:
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIME:
-			if (php_tsurugi_get_seconds_from_midnight(value, &timestamp, &timezone_offset)) {
+			if (php_tsurugi_get_timestamp(stmt, value, &timestamp, &timezone_offset, true)) {
 				rc = tsurugi_ffi_sql_parameter_of_date(H->context, parameter_name_str, (int64_t) timestamp * 1000 * 1000 * 1000, parameter_handle);
 			} else {
 				return false;
 			}
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIME_WITH_TIME_ZONE:
-			if (php_tsurugi_get_seconds_from_midnight(value, &timestamp, &timezone_offset)) {
+			if (php_tsurugi_get_timestamp(stmt,value, &timestamp, &timezone_offset, true)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_of_day_with_time_zone(
 					H->context, parameter_name_str, (int64_t) timestamp * 1000 * 1000 * 1000, timezone_offset / 60, parameter_handle);
 			} else {
@@ -263,21 +258,21 @@ bool pdo_tsurugi_register_parameter(
 			}
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DATE:
-			if (php_tsurugi_get_timestamp(value, &timestamp, &timezone_offset)) {
+			if (php_tsurugi_get_timestamp(stmt,value, &timestamp, &timezone_offset, false)) {
 				rc = tsurugi_ffi_sql_parameter_of_date(H->context, parameter_name_str, (int64_t) timestamp / 86400, parameter_handle);
 			} else {
 				return false;
 			}
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP:
-			if (php_tsurugi_get_timestamp(value, &timestamp, &timezone_offset)) {
+			if (php_tsurugi_get_timestamp(stmt,value, &timestamp, &timezone_offset, false)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_point(H->context, parameter_name_str, (int64_t) timestamp, 0, parameter_handle);
 			} else {
 				return false;
 			}
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP_WITH_TIME_ZONE:
-			if (php_tsurugi_get_timestamp(value, &timestamp, &timezone_offset)) {
+			if (php_tsurugi_get_timestamp(stmt,value, &timestamp, &timezone_offset, false)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_point_with_time_zone(
 					H->context, parameter_name_str, (int64_t) timestamp, 0, timezone_offset / 60, parameter_handle);
 			} else {
