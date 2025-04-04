@@ -210,9 +210,16 @@ bool pdo_tsurugi_register_parameter(
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_BINARY:
 			zend_string *binary_str = zval_get_string(value);
+
 			size_t binary_bytes_size = (ZSTR_LEN(binary_str) + 1) / 2;
-			uint8_t *binary_bytes = emalloc(binary_bytes_size);
 			char *binary_val_ptr = ZSTR_VAL(binary_str);
+
+			if (ZSTR_LEN(binary_str) >= 2 && binary_val_ptr[0] == '0' && binary_val_ptr[1] == 'x') {
+				binary_val_ptr += 2;
+				binary_bytes_size--;
+			}
+
+			uint8_t *binary_bytes = emalloc(binary_bytes_size);
 
 			size_t i = 0;
 			char byte[2];
