@@ -160,11 +160,133 @@ static bool tsurugi_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t
 	S->affected_rows = 0;
 	S->result = NULL;
 	S->col_metadata = NULL;
+	S->prepared_statement = NULL;
+	S->placeholders = NULL;
+	S->parameters = NULL;
 
 	stmt->driver_data = S;
 	stmt->methods = &tsurugi_stmt_methods;
-	stmt->supports_placeholders = PDO_PLACEHOLDER_NONE;
 
+	zval *placeholders;
+	if (driver_options && (placeholders = zend_hash_index_find(Z_ARRVAL_P(driver_options), PDO_TSURUGI_PLACEHOLDERS)) != NULL) {
+		if (Z_TYPE_P(placeholders) != IS_OBJECT) {
+			zend_value_error(
+				"Pdo\\Tsurugi::PLACEHOLDERS must be of type %s or %s, %s given",
+				ZSTR_VAL(pdo_tsurugi_named_placeholders_ce->name),
+				ZSTR_VAL(pdo_tsurugi_positional_placeholders_ce->name),
+				zend_zval_value_name(placeholders)
+			);
+			return false;
+		}
+
+		bool is_named_placeholders;
+		if (instanceof_function(Z_OBJCE_P(placeholders), pdo_tsurugi_named_placeholders_ce)) {
+			is_named_placeholders = true;
+		} else if (instanceof_function(Z_OBJCE_P(placeholders), pdo_tsurugi_positional_placeholders_ce)) {
+			is_named_placeholders = false;
+		} else {
+			zend_value_error(
+				"Pdo\\Tsurugi::PLACEHOLDERS must be of type %s or %s, %s given",
+				ZSTR_VAL(pdo_tsurugi_named_placeholders_ce->name),
+				ZSTR_VAL(pdo_tsurugi_positional_placeholders_ce->name),
+				zend_zval_value_name(placeholders)
+			);
+			return false;
+		}
+
+		stmt->supports_placeholders = PDO_PLACEHOLDER_NAMED;
+		stmt->named_rewrite_template = ":p%d";
+
+		zend_string *parsed_sql;
+		int ret = pdo_parse_params(stmt, sql, &parsed_sql);
+
+		if (ret == -1) {
+			strcpy(dbh->error_code, stmt->error_code);
+			return false;
+		} else if (ret != 1) {
+			parsed_sql = zend_string_copy(sql);
+		}
+
+		if (EXPECTED(stmt->bound_param_map)) {
+			HashTable *placeholders_ht = pdo_tsurugi_get_placeholders_hash_table(Z_OBJ_P(placeholders));
+			S->placeholders = zend_new_array(zend_hash_num_elements(placeholders_ht));
+			TsurugiFfiSqlPlaceholderHandle *placeholder_handles = emalloc(zend_hash_num_elements(placeholders_ht) * sizeof(TsurugiFfiSqlPlaceholderHandle));
+
+			zend_string *placeholder_key;
+			zend_ulong placeholder_index;
+			zval *placeholder_internal_key;
+			TsurugiFfiRc rc;
+			size_t count = 0;
+			if (is_named_placeholders) {
+				ZEND_HASH_FOREACH_STR_KEY_VAL(stmt->bound_param_map, placeholder_key, placeholder_internal_key) {
+					if (placeholder_key != NULL) {
+						zval *placeholder_type = zend_hash_find(placeholders_ht, placeholder_key);
+						if (placeholder_type == NULL) {
+							zend_value_error("Placeholder mismatch");
+							zend_string_release(parsed_sql);
+							efree(placeholder_handles);
+							return false;
+						}
+						zend_hash_add(S->placeholders, Z_STR_P(placeholder_internal_key), placeholder_type);
+						if (!pdo_tsurugi_register_placeholders(dbh, placeholder_internal_key, &placeholder_handles[count], Z_LVAL_P(placeholder_type))) {
+							php_tsurugi_error(dbh);
+							zend_string_release(parsed_sql);
+							for (size_t i = 0; i < count; i++) {
+								tsurugi_ffi_sql_placeholder_dispose(placeholder_handles[i]);
+							}
+							efree(placeholder_handles);
+							return false;
+						}
+						count++;
+					}
+				} ZEND_HASH_FOREACH_END();
+			} else {
+				ZEND_HASH_FOREACH_NUM_KEY_VAL(stmt->bound_param_map, placeholder_index, placeholder_internal_key) {
+					zval *placeholder_type = zend_hash_index_find(placeholders_ht, placeholder_index + 1);
+					if (placeholder_type == NULL) {
+						zend_value_error("Placeholder mismatch");
+						zend_string_release(parsed_sql);
+						efree(placeholder_handles);
+						return false;
+					}
+					zend_hash_add(S->placeholders, Z_STR_P(placeholder_internal_key), placeholder_type);
+					if (!pdo_tsurugi_register_placeholders(dbh, placeholder_internal_key, &placeholder_handles[count], Z_LVAL_P(placeholder_type))) {
+						php_tsurugi_error(dbh);
+						zend_string_release(parsed_sql);
+						for (size_t i = 0; i < count; i++) {
+							tsurugi_ffi_sql_placeholder_dispose(placeholder_handles[i]);
+						}
+						efree(placeholder_handles);
+						return false;
+					}
+					count++;
+				} ZEND_HASH_FOREACH_END();
+			}
+
+			rc = tsurugi_ffi_sql_client_prepare(H->context, H->client, ZSTR_VAL(parsed_sql), placeholder_handles, count, &S->prepared_statement);
+			for (size_t i = 0; i < count; i++) {
+				tsurugi_ffi_sql_placeholder_dispose(placeholder_handles[i]);
+			}
+			efree(placeholder_handles);
+			if (rc != 0) {
+				zend_string_release(parsed_sql);
+				php_tsurugi_error(dbh);
+				return false;
+			}
+		} else if (zend_hash_num_elements(Z_ARRVAL_P(placeholders)) > 0) {
+			zend_value_error("Placeholder mismatch");
+			zend_string_release(parsed_sql);
+			return false;
+		} else {
+			/* No placeholders */
+			stmt->supports_placeholders = PDO_PLACEHOLDER_NONE;
+			stmt->named_rewrite_template = NULL;
+			return true;
+		}
+		zend_string_release(parsed_sql);
+	} else {
+		stmt->supports_placeholders = PDO_PLACEHOLDER_NONE;
+	}
 	return true;
 }
 

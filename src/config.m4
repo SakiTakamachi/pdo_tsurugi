@@ -28,7 +28,7 @@ if test "$PHP_PDO_TSURUGI" != "no"; then
   PHP_ADD_LIBRARY_WITH_PATH([tsubakuro_rust_ffi], [$PDO_TSURUGI_LIB_DIR], [PDO_TSURUGI_SHARED_LIBADD])
   PHP_SUBST([PDO_TSURUGI_SHARED_LIBADD])
 
-  PHP_NEW_EXTENSION([pdo_tsurugi], [pdo_tsurugi.c tsurugi_driver.c tsurugi_stmt.c], [$ext_shared])
+  PHP_NEW_EXTENSION([pdo_tsurugi], [pdo_tsurugi.c tsurugi_driver.c tsurugi_stmt.c pdo_tsurugi_placeholder.c], [$ext_shared])
   PHP_ADD_EXTENSION_DEP([pdo_tsurugi], [pdo])
   PHP_ADD_MAKEFILE_FRAGMENT
 fi

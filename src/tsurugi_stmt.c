@@ -38,9 +38,61 @@ static int pdo_tsurugi_stmt_dtor(pdo_stmt_t *stmt)
 		S->col_metadata = NULL;
 	}
 	S->affected_rows = 0;
+
+	if (S->prepared_statement) {
+		tsurugi_ffi_sql_prepared_statement_dispose(S->prepared_statement);
+		S->prepared_statement = NULL;
+	}
+	if (S->placeholders) {
+		zend_array_destroy(S->placeholders);
+		S->placeholders = NULL;
+	}
+	if (S->parameters) {
+		efree(S->parameters);
+		S->parameters = NULL;
+	}
 	efree(S);
 
 	return 1;
+}
+
+static bool php_tsurugi_query_result(pdo_stmt_t *stmt)
+{
+	TsurugiFfiRc rc;
+	pdo_tsurugi_stmt *S = (pdo_tsurugi_stmt*) stmt->driver_data;
+	pdo_tsurugi_db_handle *H = S->H;
+
+	TsurugiFfiSqlQueryResultMetadataHandle query_result_metadata;
+	rc = tsurugi_ffi_sql_query_result_get_metadata(H->context, S->result, &query_result_metadata);
+	if (rc != 0) {
+		tsurugi_ffi_sql_query_result_dispose(S->result);
+		S->result = NULL;
+		return false;
+	}
+
+	uint32_t col_count;
+	rc = tsurugi_ffi_sql_query_result_metadata_get_columns_size(H->context, query_result_metadata, &col_count);
+	if (rc != 0) {
+		tsurugi_ffi_sql_query_result_dispose(S->result);
+		S->result = NULL;
+		tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
+		return false;
+	}
+	php_pdo_stmt_set_column_count(stmt, col_count);
+
+	S->col_metadata = ecalloc(stmt->column_count, sizeof(TsurugiFfiSqlColumnHandle));
+	for (size_t i = 0; i < stmt->column_count; i++) {
+		rc = tsurugi_ffi_sql_query_result_metadata_get_columns_value(H->context, query_result_metadata, i, &S->col_metadata[i]);
+		if (rc != 0) {
+			tsurugi_ffi_sql_query_result_dispose(S->result);
+			S->result = NULL;
+			php_tsurugi_free_col_metadata(stmt);
+			tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
+			return false;
+		}
+	}
+	tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
+	return true;
 }
 
 static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
@@ -63,61 +115,88 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 		zend_throw_exception_ex(php_pdo_get_exception(), 0, "There is no active transaction");
 	}
 
-	const char *sql = ZSTR_VAL(stmt->active_query_string);
-	size_t sql_len = ZSTR_LEN(stmt->active_query_string);
-	if (sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len)) {
-		/* select query */
-		rc = tsurugi_ffi_sql_client_query(H->context, H->client, H->transaction, sql, &S->result);
-		if (rc != 0) {
-			if (S->result) {
-				tsurugi_ffi_sql_query_result_dispose(S->result);
-				S->result = NULL;
-			}
-			goto fail;
+	if (stmt->supports_placeholders = PDO_PLACEHOLDER_NAMED && S->placeholders) {
+		if (S->parameter_count != zend_hash_num_elements(S->placeholders)) {
+			pdo_raise_impl_error(stmt->dbh, stmt, "HY093", "Number of placeholders and parameters does not match");
+			return 0;
 		}
 
-		TsurugiFfiSqlQueryResultMetadataHandle query_result_metadata;
-		rc = tsurugi_ffi_sql_query_result_get_metadata(H->context, S->result, &query_result_metadata);
-		if (rc != 0) {
-			tsurugi_ffi_sql_query_result_dispose(S->result);
-			S->result = NULL;
-			goto fail;
-		}
-
-		uint32_t col_count;
-		rc = tsurugi_ffi_sql_query_result_metadata_get_columns_size(H->context, query_result_metadata, &col_count);
-		if (rc != 0) {
-			tsurugi_ffi_sql_query_result_dispose(S->result);
-			S->result = NULL;
-			tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
-			goto fail;
-		}
-		php_pdo_stmt_set_column_count(stmt, col_count);
-
-		S->col_metadata = ecalloc(stmt->column_count, sizeof(TsurugiFfiSqlColumnHandle));
-		for (size_t i = 0; i < stmt->column_count; i++) {
-			rc = tsurugi_ffi_sql_query_result_metadata_get_columns_value(H->context, query_result_metadata, i, &S->col_metadata[i]);
-			if (rc != 0) {
-				tsurugi_ffi_sql_query_result_dispose(S->result);
-				S->result = NULL;
-				php_tsurugi_free_col_metadata(stmt);
-				tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
+		TsurugiFfiSqlParameterHandle *parameter_handles = emalloc(sizeof(TsurugiFfiSqlParameterHandle) * S->parameter_count);
+		for (size_t i = 0; i < S->parameter_count; i++) {
+			if (!pdo_tsurugi_register_parameter(stmt->dbh, S->parameters[i].name, &parameter_handles[i], S->parameters[i].type, S->parameters[i].value)) {
+				for (size_t j = 0; j < i; j++) {
+					tsurugi_ffi_sql_parameter_dispose(parameter_handles[j]);
+				}
+				efree(parameter_handles);
 				goto fail;
 			}
 		}
-		tsurugi_ffi_sql_query_result_metadata_dispose(query_result_metadata);
-	} else {
-		/* others */
-		TsurugiFfiSqlExecuteResultHandle execute_result;
-		rc = tsurugi_ffi_sql_client_execute(H->context, H->client, H->transaction, sql, &execute_result);
-		if (rc != 0) {
-			goto fail;
-		}
 
-		int64_t affected_rows;
-		rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, execute_result, &affected_rows);
-		tsurugi_ffi_sql_execute_result_dispose(execute_result);
-		S->affected_rows = affected_rows;
+		const char *sql = ZSTR_VAL(stmt->query_string);
+		size_t sql_len = ZSTR_LEN(stmt->query_string);
+		if (sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len)) {
+			/* select query */
+			rc = tsurugi_ffi_sql_client_prepared_query(
+				H->context, H->client, H->transaction, S->prepared_statement, parameter_handles, S->parameter_count, &S->result);
+			if (rc != 0 || !php_tsurugi_query_result(stmt)) {
+				if (S->result) {
+					tsurugi_ffi_sql_query_result_dispose(S->result);
+					S->result = NULL;
+				}
+				for (size_t i = 0; i < S->parameter_count; i++) {
+					tsurugi_ffi_sql_parameter_dispose(parameter_handles[i]);
+				}
+				efree(parameter_handles);
+				goto fail;
+			}
+		} else {
+			/* others */
+			TsurugiFfiSqlExecuteResultHandle execute_result;
+			rc = tsurugi_ffi_sql_client_prepared_execute(
+				H->context, H->client, H->transaction, S->prepared_statement, parameter_handles, S->parameter_count, &execute_result);
+			if (rc != 0) {
+				for (size_t i = 0; i < S->parameter_count; i++) {
+					tsurugi_ffi_sql_parameter_dispose(parameter_handles[i]);
+				}
+				efree(parameter_handles);
+				goto fail;
+			}
+
+			int64_t affected_rows;
+			rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, execute_result, &affected_rows);
+			tsurugi_ffi_sql_execute_result_dispose(execute_result);
+			S->affected_rows = affected_rows;
+		}
+		for (size_t i = 0; i < S->parameter_count; i++) {
+			tsurugi_ffi_sql_parameter_dispose(parameter_handles[i]);
+		}
+		efree(parameter_handles);
+	} else {
+		const char *sql = ZSTR_VAL(stmt->active_query_string);
+		size_t sql_len = ZSTR_LEN(stmt->active_query_string);
+		if (sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len)) {
+			/* select query */
+			rc = tsurugi_ffi_sql_client_query(H->context, H->client, H->transaction, sql, &S->result);
+			if (rc != 0 || !php_tsurugi_query_result(stmt)) {
+				if (S->result) {
+					tsurugi_ffi_sql_query_result_dispose(S->result);
+					S->result = NULL;
+				}
+				goto fail;
+			}
+		} else {
+			/* others */
+			TsurugiFfiSqlExecuteResultHandle execute_result;
+			rc = tsurugi_ffi_sql_client_execute(H->context, H->client, H->transaction, sql, &execute_result);
+			if (rc != 0) {
+				goto fail;
+			}
+
+			int64_t affected_rows;
+			rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, execute_result, &affected_rows);
+			tsurugi_ffi_sql_execute_result_dispose(execute_result);
+			S->affected_rows = affected_rows;
+		}
 	}
 
 	if (instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
@@ -514,6 +593,85 @@ fail:
 	return 0;
 }
 
+static int pdo_tsurugi_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type)
+{
+	pdo_tsurugi_stmt *S = (pdo_tsurugi_stmt*) stmt->driver_data;
+
+	if (stmt->supports_placeholders != PDO_PLACEHOLDER_NAMED) {
+		return 1;
+	}
+
+	if (!param->is_param) {
+		return 1;
+	}
+
+	/* No placeholders */
+	if (!stmt->bound_param_map) {
+		return 1;
+	}
+
+	zval *placeholder = NULL;
+	zend_string *param_name = NULL;
+	switch (event_type) {
+		case PDO_PARAM_EVT_ALLOC:
+			if (param->paramno == -1) {
+				param_name = zend_hash_find_ptr(stmt->bound_param_map, param->name);
+			} else {
+				param_name = zend_hash_index_find_ptr(stmt->bound_param_map, param->paramno);
+			}
+			if (param_name != NULL) {
+				placeholder = zend_hash_find(S->placeholders, param_name);
+			}
+			if (placeholder == NULL) {
+				pdo_raise_impl_error(stmt->dbh, stmt, "HY093", "placeholder was not defined");
+				return 0;
+			}
+			break;
+
+		case PDO_PARAM_EVT_EXEC_PRE:
+			zval *parameter;
+			if (Z_ISREF(param->parameter)) {
+				parameter = Z_REFVAL(param->parameter);
+			} else {
+				parameter = &param->parameter;
+			}
+
+			if (param->paramno == -1) {
+				param_name = zend_hash_find_ptr(stmt->bound_param_map, param->name);
+			} else {
+				param_name = zend_hash_index_find_ptr(stmt->bound_param_map, param->paramno);
+			}
+			if (param_name != NULL) {
+				placeholder = zend_hash_find(S->placeholders, param_name);
+			}
+			if (placeholder == NULL) {
+				pdo_raise_impl_error(stmt->dbh, stmt, "HY093", "placeholder was not defined");
+				return 0;
+			}
+
+			if (!S->parameters) {
+				S->parameters = ecalloc(zend_hash_num_elements(S->placeholders), sizeof(pdo_tsurugi_parameter));
+				S->parameter_count = 0;
+			}
+
+			size_t param_index;
+			if (param->paramno < 0) {
+				param_index = ZEND_ATOL(ZSTR_VAL(param_name) + 2) - 1;
+			} else {
+				param_index = param->paramno;
+			}
+
+			S->parameters[param_index].name = param_name;
+			S->parameters[param_index].type = Z_LVAL_P(placeholder);
+			S->parameters[param_index].value = parameter;
+			S->parameters[param_index].is_null = Z_TYPE_P(parameter) == IS_NULL;
+			S->parameter_count++;
+
+			break;
+	}
+	return 1;
+}
+
 static int pdo_tsurugi_stmt_cursor_closer(pdo_stmt_t *stmt)
 {
 	/* Nothing todo */
@@ -527,7 +685,7 @@ const struct pdo_stmt_methods tsurugi_stmt_methods = { /* {{{ */
 	pdo_tsurugi_stmt_fetch,
 	pdo_tsurugi_stmt_describe,
 	pdo_tsurugi_stmt_get_col,
-	NULL, /* param hook */
+	pdo_tsurugi_stmt_param_hook,
 	NULL, /* set_attribute */
 	NULL, /* get_attribute */
 	NULL, /* get_column_meta */

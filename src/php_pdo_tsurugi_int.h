@@ -7,6 +7,10 @@
 
 extern const pdo_driver_t pdo_tsurugi_driver;
 extern zend_class_entry *pdo_tsurugi_transaction_type_ce;
+
+extern zend_class_entry *pdo_tsurugi_named_placeholders_ce;
+extern zend_class_entry *pdo_tsurugi_positional_placeholders_ce;
+
 extern const struct pdo_stmt_methods tsurugi_stmt_methods;
 
 typedef struct {
@@ -24,13 +28,46 @@ typedef struct {
 	TsurugiFfiTransactionType transaction_type;
 } pdo_tsurugi_db_handle;
 
+typedef enum {
+	PDO_TSURUGI_PLACEHOLDER_TYPE_NULL = 0,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_BOOLEAN,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_INTEGER,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_BIG_INTEGER,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_STRING,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_BINARY,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_FLOAT,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_DOUBLE,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_DECIMAL,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_TIME,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_TIME_WITH_TIME_ZONE,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_DATE,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME,
+	PDO_TSURUGI_PLACEHOLDER_TYPE_DATE_TIME_WITH_TIME_ZONE
+} pdo_tsurugi_data_type;
+
+typedef struct {
+	zend_string *name;
+	pdo_tsurugi_data_type type;
+	zval *value;
+	bool is_null;
+} pdo_tsurugi_parameter;
+
 typedef struct {
 	pdo_tsurugi_db_handle *H;
 	TsurugiFfiSqlQueryResultHandle result;
 	TsurugiFfiSqlColumnHandle *col_metadata;
 	zend_long affected_rows;
 	uint32_t col_count;
+	TsurugiFfiSqlPreparedStatementHandle prepared_statement;
+	HashTable *placeholders;
+	pdo_tsurugi_parameter *parameters;
+	size_t parameter_count;
 } pdo_tsurugi_stmt;
+
+typedef struct {
+	HashTable *placeholders;
+	zend_object std;
+} pdo_tsurugi_placeholders;
 
 void php_tsurugi_set_error(
 	pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *state, const size_t state_len, const char *msg, const size_t msg_len);
@@ -44,6 +81,12 @@ void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state)
 bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh, bool *instant_txn);
 bool php_tsurugi_commit_instant_txn(pdo_dbh_t *dbh);
 
+HashTable *pdo_tsurugi_get_placeholders_hash_table(zend_object *obj);
+bool pdo_tsurugi_register_placeholders(
+	pdo_dbh_t *dbh, zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type);
+bool pdo_tsurugi_register_parameter(
+	pdo_dbh_t *dbh, zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value);
+
 static zend_always_inline bool php_tsurugi_has_error(pdo_dbh_t *dbh)
 {
 	TsurugiFfiRc rc;
@@ -53,7 +96,8 @@ static zend_always_inline bool php_tsurugi_has_error(pdo_dbh_t *dbh)
 }
 
 enum {
-	PDO_TSURUGI_TRANSACTION_TYPE = PDO_ATTR_DRIVER_SPECIFIC
+	PDO_TSURUGI_PLACEHOLDERS = PDO_ATTR_DRIVER_SPECIFIC,
+	PDO_TSURUGI_TRANSACTION_TYPE
 };
 
 #endif
