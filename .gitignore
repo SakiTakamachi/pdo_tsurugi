@@ -11,3 +11,9 @@ src/*.dep
 src/*.la
 src/*.lo
 src/run-tests.php
+*.diff
+*.exp
+*.log
+*.out
+*.php
+*.sh
