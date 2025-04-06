@@ -340,7 +340,7 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 				TsurugiFfiByteArrayHandle b_ptr = bytes;
 				TsurugiFfiByteArrayHandle b_end = bytes + bytes_size;
-				size_t vsize = ((bytes_size + sizeof(uint32_t) - 1) / sizeof(uint32_t));
+				size_t vsize = (bytes_size + sizeof(uint32_t) - 1) / sizeof(uint32_t);
 				v = emalloc(vsize * sizeof(uint64_t));
 				bool has_leftover = bytes_size % sizeof(uint32_t);
 				size_t bulk_loop = has_leftover ? vsize - 1 : vsize;
