@@ -423,7 +423,7 @@ bool pdo_tsurugi_register_parameter(
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIME:
 			if (php_tsurugi_get_timestamp(stmt, value, &timestamp, &timezone_offset, true)) {
-				rc = tsurugi_ffi_sql_parameter_of_date(H->context, parameter_name_str, (int64_t) timestamp * 1000 * 1000 * 1000, parameter_handle);
+				rc = tsurugi_ffi_sql_parameter_of_time_of_day(H->context, parameter_name_str, (uint64_t) timestamp * 1000 * 1000 * 1000, parameter_handle);
 			} else {
 				return false;
 			}
@@ -431,7 +431,7 @@ bool pdo_tsurugi_register_parameter(
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_TIME_WITH_TIME_ZONE:
 			if (php_tsurugi_get_timestamp(stmt,value, &timestamp, &timezone_offset, true)) {
 				rc = tsurugi_ffi_sql_parameter_of_time_of_day_with_time_zone(
-					H->context, parameter_name_str, (int64_t) timestamp * 1000 * 1000 * 1000, timezone_offset / 60, parameter_handle);
+					H->context, parameter_name_str, (uint64_t) timestamp * 1000 * 1000 * 1000, timezone_offset / 60, parameter_handle);
 			} else {
 				return false;
 			}
