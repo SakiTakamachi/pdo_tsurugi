@@ -241,25 +241,27 @@ static bool tsurugi_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t
 					}
 				} ZEND_HASH_FOREACH_END();
 			} else {
-				ZEND_HASH_FOREACH_NUM_KEY_VAL(stmt->bound_param_map, placeholder_index, placeholder_internal_key) {
-					zval *placeholder_type = zend_hash_index_find(placeholders_ht, placeholder_index + 1);
-					if (placeholder_type == NULL) {
-						zend_value_error("Placeholder mismatch");
-						zend_string_release(parsed_sql);
-						efree(placeholder_handles);
-						return false;
-					}
-					zend_hash_add(S->placeholders, Z_STR_P(placeholder_internal_key), placeholder_type);
-					if (!pdo_tsurugi_register_placeholders(dbh, placeholder_internal_key, &placeholder_handles[count], Z_LVAL_P(placeholder_type))) {
-						php_tsurugi_error(dbh);
-						zend_string_release(parsed_sql);
-						for (size_t i = 0; i < count; i++) {
-							tsurugi_ffi_sql_placeholder_dispose(placeholder_handles[i]);
+				ZEND_HASH_FOREACH_KEY_VAL(stmt->bound_param_map, placeholder_index, placeholder_key, placeholder_internal_key) {
+					if (placeholder_key == NULL) {
+						zval *placeholder_type = zend_hash_index_find(placeholders_ht, placeholder_index + 1);
+						if (placeholder_type == NULL) {
+							zend_value_error("Placeholder mismatch");
+							zend_string_release(parsed_sql);
+							efree(placeholder_handles);
+							return false;
 						}
-						efree(placeholder_handles);
-						return false;
+						zend_hash_add(S->placeholders, Z_STR_P(placeholder_internal_key), placeholder_type);
+						if (!pdo_tsurugi_register_placeholders(dbh, placeholder_internal_key, &placeholder_handles[count], Z_LVAL_P(placeholder_type))) {
+							php_tsurugi_error(dbh);
+							zend_string_release(parsed_sql);
+							for (size_t i = 0; i < count; i++) {
+								tsurugi_ffi_sql_placeholder_dispose(placeholder_handles[i]);
+							}
+							efree(placeholder_handles);
+							return false;
+						}
+						count++;
 					}
-					count++;
 				} ZEND_HASH_FOREACH_END();
 			}
 

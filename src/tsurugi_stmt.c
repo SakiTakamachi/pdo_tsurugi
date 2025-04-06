@@ -663,11 +663,13 @@ static int pdo_tsurugi_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_
 				param_index = param->paramno;
 			}
 
+			if (!S->parameters[param_index].name) {
+				S->parameter_count++;
+			}
 			S->parameters[param_index].name = param_name;
 			S->parameters[param_index].type = Z_LVAL_P(placeholder);
 			S->parameters[param_index].value = parameter;
 			S->parameters[param_index].is_null = Z_TYPE_P(parameter) == IS_NULL;
-			S->parameter_count++;
 
 			break;
 	}
