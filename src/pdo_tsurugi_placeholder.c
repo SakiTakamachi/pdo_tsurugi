@@ -141,7 +141,7 @@ bool pdo_tsurugi_register_placeholders(
 }
 
 static bool php_tsurugi_convert_decimal_to_binary(
-	pdo_stmt_t *stmt, zval *value, int64_t *upper_dist, uint64_t *lower_dist, uint8_t **val_dist, uint32_t *val_size_dist, int32_t *exponent_dist)
+	pdo_stmt_t *stmt, zval *value, int64_t *upper_dist, uint64_t *lower_dist, int32_t *exponent_dist)
 {
 	zend_string *str = zval_get_string(value);
 	char *ptr = ZSTR_VAL(str);
@@ -237,108 +237,55 @@ static bool php_tsurugi_convert_decimal_to_binary(
 	}
 	size_t num_len = num_end - num_str_ptr;
 	if (UNEXPECTED(num_len == 0)) {
-		*val_dist = emalloc(1);
-		*val_size_dist = 1;
-		(*val_dist)[0] = 0;
+		*lower_dist = 0;
+		*upper_dist = 0;
 		*exponent_dist = 0;
 		zend_string_release(str);
 		efree(num_str);
 		return true;
-
-#ifdef __SIZEOF_INT128__
-	} else if (num_len <= 38) {
-		/* Fits in 128 bits */
-		__int128_t lval = 0;
-		while (num_str_ptr < num_end) {
-			lval = lval * 10 + *num_str_ptr++;
-		}
-		if (num_is_negative) lval = -lval;
-
-		*lower_dist = (uint64_t) (lval & 0xFFFFFFFFFFFFFFFFULL);
-		*upper_dist = (int64_t) (lval >> 64);
-		*exponent_dist = (int32_t) exponent;
-		zend_string_release(str);
-		efree(num_str);
-		return true;
-
-#else
-	} else if (num_len <= 18) {
-		/* Fits in 64 bits */
-		uint64_t lower_lower = 0;
-		uint64_t lower_upper = 0;
-		uint64_t upper_lower = 0;
-		uint64_t upper_upper = 0;
-
-		if (num_is_negative) {
-			while (num_str_ptr < num_end) {
-				lower_lower = lower_lower * 10 - *num_str_ptr++;
-				lower_upper += lower_lower >> 32;
-				upper_lower += lower_upper >> 32;
-				upper_upper += upper_lower >> 32;
-				lower_lower &= 0xFFFFFFFF;
-			}
-		} else {
-			while (num_str_ptr < num_end) {
-				lower_lower = lower_lower * 10 + *num_str_ptr++;
-				lower_upper += lower_lower >> 32;
-				upper_lower += lower_upper >> 32;
-				upper_upper += upper_lower >> 32;
-				lower_lower &= 0xFFFFFFFF;
-			}
-		}
-
-		*lower_dist = (uint64_t) lower_lower & (lower_upper >> 64);
-		*upper_dist = (int64_t) upper_lower & (upper_upper >> 64);
-		*exponent_dist = (int32_t) exponent;
-		zend_string_release(str);
-		efree(num_str);
-		return true;
-#endif
 	}
 
-	/* Since the maximum precision of turusgi's decimal is 38 digits, is this processing unnecessary? */
-	size_t vsize = (num_len + sizeof(uint32_t) - 1) / sizeof(uint32_t);
-	uint64_t *v = ecalloc(vsize, sizeof(uint64_t));
+//#ifdef __SIZEOF_INT128__
+#if 0
+	__int128_t lval = 0;
+	while (num_str_ptr < num_end) {
+		lval = lval * 10 + *num_str_ptr++;
+	}
+	if (num_is_negative) lval = -lval;
 
-	uint16_t tmp_val = *num_str_ptr & 0xFF;
-	uint16_t carry = *num_str_ptr >> 8;
+	*lower_dist = (uint64_t) (lval & 0xFFFFFFFFFFFFFFFFULL);
+	*upper_dist = (int64_t) (lval >> 64);
+#else
+	uint32_t parts[4] = {0};
+
+	while (num_str_ptr < num_end) {
+		uint32_t digit = *num_str_ptr++;
+		uint64_t carry = digit;
+		for (int i = 0; i < 4; ++i) {
+			uint64_t val = (uint64_t) parts[i] * 10 + carry;
+			parts[i] = (uint32_t) (val & 0xFFFFFFFF);
+			carry = val >> 32;
+		}
+	}
 
 	if (num_is_negative) {
-		while (num_str_ptr < num_end) {
-			v[vsize - 1] = v[vsize - 1] * 10 - *num_str_ptr++;
-			for (size_t i = vsize - 2; i > 0; i--) {
-				v[i - 1] += v[i] >> 32;
-			}
-			v[0] &= 0xFFFFFFFF;
+		for (int i = 0; i < 4; ++i) {
+			parts[i] = ~parts[i];
 		}
-	} else {
-		while (num_str_ptr < num_end) {
-			v[vsize - 1] = v[vsize - 1] * 10 + *num_str_ptr++;
-			for (size_t i = vsize - 2; i > 0; i--) {
-				v[i - 1] += v[i] >> 32;
+		for (int i = 0; i < 4; ++i) {
+			if (++parts[i] != 0) {
+				break;
 			}
-			v[0] &= 0xFFFFFFFF;
 		}
 	}
 
-	*val_size_dist = vsize * sizeof(uint32_t);
-	*val_dist = emalloc(*val_size_dist);
-	uint8_t *val_ptr = *val_dist;
-
-	for (size_t i = 0; i < vsize; i++) {
-		uint32_t tmp = v[i];
-#ifndef WORDS_BIGENDIAN
-			tmp = ZEND_BYTES_SWAP32(tmp);
+	*lower_dist = ((uint64_t) parts[1] << 32) | parts[0];
+	*upper_dist = ((uint64_t) parts[3] << 32) | parts[2];
 #endif
-		memcpy(val_ptr, &tmp, sizeof(uint32_t));
-		val_ptr += sizeof(uint32_t);
-	}
 
 	*exponent_dist = (int32_t) exponent;
-
 	zend_string_release(str);
 	efree(num_str);
-	efree(v);
 	return true;
 
 fail:
@@ -467,16 +414,9 @@ bool pdo_tsurugi_register_parameter(
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DECIMAL:
 			int64_t upper = 0;
 			uint64_t lower = 0;
-			uint8_t *decimal_val = NULL;
-			uint32_t decimal_val_size = 0;
 			int32_t exponent = 0;
-			if (php_tsurugi_convert_decimal_to_binary(stmt, value, &upper, &lower, &decimal_val, &decimal_val_size, &exponent)) {
-				if (decimal_val) {
-					rc = tsurugi_ffi_sql_parameter_of_decimal(H->context, parameter_name_str, decimal_val, decimal_val_size, exponent, parameter_handle);
-					efree(decimal_val);
-				} else {
-					rc = tsurugi_ffi_sql_parameter_of_decimal_i128(H->context, parameter_name_str, upper, lower, exponent, parameter_handle);
-				}
+			if (php_tsurugi_convert_decimal_to_binary(stmt, value, &upper, &lower, &exponent)) {
+				rc = tsurugi_ffi_sql_parameter_of_decimal_i128(H->context, parameter_name_str, upper, lower, exponent, parameter_handle);
 			} else {
 				return false;
 			}
