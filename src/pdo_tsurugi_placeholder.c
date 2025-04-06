@@ -369,7 +369,7 @@ bool pdo_tsurugi_register_parameter(
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_STRING:
 			zend_string *str = zval_get_string(value);
-			tsurugi_ffi_sql_parameter_of_character(H->context, parameter_name_str, ZSTR_VAL(str), parameter_handle);
+			rc = tsurugi_ffi_sql_parameter_of_character(H->context, parameter_name_str, ZSTR_VAL(str), parameter_handle);
 			zend_string_release(str);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_BINARY:
@@ -401,15 +401,15 @@ bool pdo_tsurugi_register_parameter(
 				binary_val_ptr += 2;
 			}
 
-			tsurugi_ffi_sql_parameter_of_octet(H->context, parameter_name_str, binary_bytes, binary_bytes_size, parameter_handle);
+			rc = tsurugi_ffi_sql_parameter_of_octet(H->context, parameter_name_str, binary_bytes, binary_bytes_size, parameter_handle);
 			efree(binary_bytes);
 			zend_string_release(binary_str);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_FLOAT:
-			tsurugi_ffi_sql_parameter_of_float4(H->context, parameter_name_str, (float) zval_get_double(value), parameter_handle);
+			rc = tsurugi_ffi_sql_parameter_of_float4(H->context, parameter_name_str, (float) zval_get_double(value), parameter_handle);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DOUBLE:
-			tsurugi_ffi_sql_parameter_of_float8(H->context, parameter_name_str, zval_get_double(value), parameter_handle);
+			rc = tsurugi_ffi_sql_parameter_of_float8(H->context, parameter_name_str, zval_get_double(value), parameter_handle);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_DECIMAL:
 			int64_t upper = 0;

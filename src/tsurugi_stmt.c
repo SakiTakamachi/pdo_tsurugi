@@ -124,7 +124,7 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 		TsurugiFfiSqlParameterHandle *parameter_handles = emalloc(sizeof(TsurugiFfiSqlParameterHandle) * S->parameter_count);
 		for (size_t i = 0; i < S->parameter_count; i++) {
 			if (!pdo_tsurugi_register_parameter(stmt, S->parameters[i].name, &parameter_handles[i], S->parameters[i].type, S->parameters[i].value)) {
-				for (size_t j = 0; j < i; j++) {
+				for (size_t j = 0; j <= i; j++) {
 					tsurugi_ffi_sql_parameter_dispose(parameter_handles[j]);
 				}
 				efree(parameter_handles);
@@ -614,8 +614,10 @@ static int pdo_tsurugi_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_
 
 	zval *placeholder = NULL;
 	zend_string *param_name = NULL;
+	bool already_alloc_retry = false;
 	switch (event_type) {
 		case PDO_PARAM_EVT_ALLOC:
+alloc_retry:
 			if (param->paramno == -1) {
 				param_name = zend_hash_find_ptr(stmt->bound_param_map, param->name);
 			} else {
@@ -625,6 +627,11 @@ static int pdo_tsurugi_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_
 				placeholder = zend_hash_find(S->placeholders, param_name);
 			}
 			if (placeholder == NULL) {
+				if (!already_alloc_retry && param->paramno == -1 && is_numeric_string(ZSTR_VAL(param->name), ZSTR_LEN(param->name), &param->paramno, NULL, 0)) {
+					param->paramno--;
+					already_alloc_retry = true;
+					goto alloc_retry;
+				}
 				pdo_raise_impl_error(stmt->dbh, stmt, "HY093", "placeholder was not defined");
 				return 0;
 			}
