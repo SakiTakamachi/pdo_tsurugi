@@ -466,12 +466,10 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 				str_ptr += leading_zeros;
 			}
 
-			if (before_decimal_point_len == 0) {
-				*str_ptr++ = '.';
-			}
-
-			if (has_decimal_point && before_decimal_point_len > 0) {
-				memcpy(str_ptr, tmp_str, before_decimal_point_len);
+			if (has_decimal_point && before_decimal_point_len >= 0) {
+				if (before_decimal_point_len > 0) {
+					memcpy(str_ptr, tmp_str, before_decimal_point_len);
+				}
 				str_ptr += before_decimal_point_len;
 				tmp_str += before_decimal_point_len;
 				len -= before_decimal_point_len;
