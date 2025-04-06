@@ -206,7 +206,9 @@ bool pdo_tsurugi_register_parameter(
 			rc = tsurugi_ffi_sql_parameter_of_int8(H->context, parameter_name_str, (int64_t) zval_get_long(value), parameter_handle);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_STRING:
-			tsurugi_ffi_sql_parameter_of_character(H->context, parameter_name_str, ZSTR_VAL(zval_get_string(value)), parameter_handle);
+			zend_string *str = zval_get_string(value);
+			tsurugi_ffi_sql_parameter_of_character(H->context, parameter_name_str, ZSTR_VAL(str), parameter_handle);
+			zend_string_release(str);
 			break;
 		case PDO_TSURUGI_PLACEHOLDER_TYPE_BINARY:
 			zend_string *binary_str = zval_get_string(value);
