@@ -18,16 +18,20 @@ $stmt->bindValue(':b', '123456789012345678901234567890123456', PDO::PARAM_STR);
 $stmt->bindValue(':c', '1.234567890123456789012345', PDO::PARAM_STR);
 $stmt->execute();
 
+$stmt->bindValue(':a', '00', PDO::PARAM_STR);
+$stmt->bindValue(':b', '00', PDO::PARAM_STR);
+$stmt->bindValue(':c', '0.234567890123456789012345', PDO::PARAM_STR);
+$stmt->execute();
+
 $a = -15;
 $b = '-123456789012345678901234567890123456';
 $c = '-1.234567890123456789012345';
-$stmt = $db->prepare("INSERT INTO test_column_types_decimal (a, b, c) VALUES (:a, :b, :c)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_STR);
 $stmt->bindParam(':b', $b, PDO::PARAM_STR);
 $stmt->bindParam(':c', $c, PDO::PARAM_STR);
 $stmt->execute();
 
-$stmt = $db->prepare("INSERT INTO test_column_types_decimal (a, b, c) VALUES (:a, :b, :c)");
 $stmt->bindValue(':a', null, PDO::PARAM_STR);
 $stmt->bindValue(':b', null, PDO::PARAM_STR);
 $stmt->bindValue(':c', null, PDO::PARAM_NULL);
@@ -36,7 +40,7 @@ $stmt->execute();
 $a = null;
 $b = null;
 $c = null;
-$stmt = $db->prepare("INSERT INTO test_column_types_decimal (a, b, c) VALUES (:a, :b, :c)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_NULL);
 $stmt->bindParam(':b', $b, PDO::PARAM_STR);
 $stmt->bindParam(':c', $c, PDO::PARAM_STR);
@@ -51,7 +55,7 @@ require dirname(__DIR__, 1) . '/test.inc';
 dropTable('test_column_types_decimal');
 ?>
 --EXPECT--
-array(7) {
+array(8) {
   [0]=>
   array(3) {
     ["a"]=>
@@ -91,13 +95,22 @@ array(7) {
   [4]=>
   array(3) {
     ["a"]=>
+    string(1) "0"
+    ["b"]=>
+    string(1) "0"
+    ["c"]=>
+    string(30) "0.2345678901234567890123450000"
+  }
+  [5]=>
+  array(3) {
+    ["a"]=>
     string(3) "-15"
     ["b"]=>
     string(37) "-123456789012345678901234567890123456"
     ["c"]=>
     string(31) "-1.2345678901234567890123450000"
   }
-  [5]=>
+  [6]=>
   array(3) {
     ["a"]=>
     NULL
@@ -106,7 +119,7 @@ array(7) {
     ["c"]=>
     NULL
   }
-  [6]=>
+  [7]=>
   array(3) {
     ["a"]=>
     NULL

@@ -35,7 +35,6 @@ $stmt->bindParam(':d', $d, PDO::PARAM_STR);
 $stmt->bindParam(':e', $e, PDO::PARAM_STR);
 $stmt->execute();
 
-$stmt = $db->prepare("INSERT INTO test_column_types_character (a, b, c, d, e) VALUES (:a, :b, :c, :d, :e)");
 $stmt->bindValue(':a', null, PDO::PARAM_NULL);
 $stmt->bindValue(':b', null, PDO::PARAM_STR);
 $stmt->bindValue(':c', null, PDO::PARAM_NULL);

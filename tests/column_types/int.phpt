@@ -18,19 +18,18 @@ $stmt->execute();
 
 $a = -1;
 $b = -2;
-$stmt = $db->prepare("INSERT INTO test_column_types_int (a, b) VALUES (:a, :b)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_INT);
 $stmt->bindParam(':b', $b, PDO::PARAM_INT);
 $stmt->execute();
 
-$stmt = $db->prepare("INSERT INTO test_column_types_int (a, b) VALUES (:a, :b)");
 $stmt->bindValue(':a', null, PDO::PARAM_INT);
 $stmt->bindValue(':b', null, PDO::PARAM_NULL);
 $stmt->execute();
 
 $a = null;
 $b = null;
-$stmt = $db->prepare("INSERT INTO test_column_types_int (a, b) VALUES (:a, :b)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_NULL);
 $stmt->bindParam(':b', $b, PDO::PARAM_INT);
 $stmt->execute();

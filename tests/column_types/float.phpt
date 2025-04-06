@@ -21,7 +21,7 @@ $stmt->execute();
 $a = -1.1;
 $b = -2.1;
 $c = -3.1;
-$stmt = $db->prepare("INSERT INTO test_column_types_float (a, b, c) VALUES (:a, :b, :c)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_STR);
 $stmt->bindParam(':b', $b, PDO::PARAM_STR);
 $stmt->bindParam(':c', $c, PDO::PARAM_STR);
@@ -30,13 +30,12 @@ $stmt->execute();
 $a = 1.23E-3;
 $b = 1.23456E-9;
 $c = 1.23456789123456789E-9;
-$stmt = $db->prepare("INSERT INTO test_column_types_float (a, b, c) VALUES (:a, :b, :c)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_STR);
 $stmt->bindParam(':b', $b, PDO::PARAM_STR);
 $stmt->bindParam(':c', $c, PDO::PARAM_STR);
 $stmt->execute();
 
-$stmt = $db->prepare("INSERT INTO test_column_types_float (a, b, c) VALUES (:a, :b, :c)");
 $stmt->bindValue(':a', null, PDO::PARAM_STR);
 $stmt->bindValue(':b', null, PDO::PARAM_NULL);
 $stmt->bindValue(':c', null, PDO::PARAM_NULL);
@@ -45,7 +44,7 @@ $stmt->execute();
 $a = null;
 $b = null;
 $c = null;
-$stmt = $db->prepare("INSERT INTO test_column_types_float (a, b, c) VALUES (:a, :b, :c)");
+
 $stmt->bindParam(':a', $a, PDO::PARAM_STR);
 $stmt->bindParam(':b', $b, PDO::PARAM_NULL);
 $stmt->bindParam(':c', $c, PDO::PARAM_STR);
