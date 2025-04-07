@@ -23,5 +23,5 @@ array(3) {
   [1]=>
   int(3004)
   [2]=>
-  string(285) "SYMBOL_ANALYZE_EXCEPTION[SQL-03004] SQL service error (SQL-03004 (SYMBOL_ANALYZE_EXCEPTION)) compile failed with error:table_not_found message:"table "test_error_info" is not found" %s"
+  string(%d) "SYMBOL_ANALYZE_EXCEPTION[SQL-03004] SQL service error (SQL-03004 (SYMBOL_ANALYZE_EXCEPTION)) compile failed with error:table_not_found message:"table "test_error_info" is not found" %s"
 }
