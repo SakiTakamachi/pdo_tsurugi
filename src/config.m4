@@ -13,7 +13,6 @@ if test "$PHP_PDO_TSURUGI" != "no"; then
     PDO_TSURUGI_INCLUDE_DIR="$PHP_PDO_TSURUGI/tsubakuro-rust-ffi"
   fi
 
-
   PDO_TSURUGI_LIB_DIR="$PDO_TSURUGI_INCLUDE_DIR/target/release"
 
   if test ! -f "$PDO_TSURUGI_INCLUDE_DIR/tsubakuro-rust-ffi.h"; then
@@ -29,6 +28,7 @@ if test "$PHP_PDO_TSURUGI" != "no"; then
   PHP_SUBST([PDO_TSURUGI_SHARED_LIBADD])
 
   PHP_NEW_EXTENSION([pdo_tsurugi], [pdo_tsurugi.c tsurugi_driver.c tsurugi_stmt.c pdo_tsurugi_placeholder.c], [$ext_shared])
+  PHP_ADD_EXTENSION_DEP([pdo_tsurugi], [date])
   PHP_ADD_EXTENSION_DEP([pdo_tsurugi], [pdo])
   PHP_ADD_MAKEFILE_FRAGMENT
 fi
