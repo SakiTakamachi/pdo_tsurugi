@@ -29,7 +29,7 @@ namespace Pdo\Tsurugi
 
     final class NamedPlaceholders
     {
-        public function addBoolean(string $name): NamedPlaceholders {}
+        // public function addBoolean(string $name): NamedPlaceholders {}
         public function addInteger(string $name): NamedPlaceholders {}
         public function addBigInteger(string $name): NamedPlaceholders {}
         public function addString(string $name): NamedPlaceholders {}
@@ -46,7 +46,7 @@ namespace Pdo\Tsurugi
 
     final class PositionalPlaceholders
     {
-        public function addBoolean(int $position): PositionalPlaceholders {}
+        // public function addBoolean(int $position): PositionalPlaceholders {}
         public function addInteger(int $position): PositionalPlaceholders {}
         public function addBigInteger(int $position): PositionalPlaceholders {}
         public function addString(int $position): PositionalPlaceholders {}
