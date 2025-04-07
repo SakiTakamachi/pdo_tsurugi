@@ -3,7 +3,7 @@ transaction
 --FILE--
 <?php
 
-require __DIR__ . '/test.inc';
+require dirname(__DIR__, 1) . '/test.inc';
 $db = getConnection();
 
 function inTransaction($db)
@@ -70,7 +70,7 @@ inTransaction($db);
 ?>
 --CLEAN--
 <?php
-require __DIR__ . '/test.inc';
+require dirname(__DIR__, 1) . '/test.inc';
 dropTable('test_transaction');
 ?>
 --EXPECT--

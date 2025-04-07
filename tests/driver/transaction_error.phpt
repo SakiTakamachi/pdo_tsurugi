@@ -3,7 +3,7 @@ transaction error
 --FILE--
 <?php
 
-require __DIR__ . '/test.inc';
+require dirname(__DIR__, 1) . '/test.inc';
 $db = getConnection();
 
 $db->setAttribute(PDO::ATTR_AUTOCOMMIT, false);
