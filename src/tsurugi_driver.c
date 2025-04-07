@@ -158,6 +158,8 @@ static bool tsurugi_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t
 
 	S->H = H;
 	S->result = NULL;
+	S->col_count = 0;
+	S->fetched_col_count = 0;
 	S->col_metadata = NULL;
 	S->prepared_statement = NULL;
 	S->placeholders = NULL;

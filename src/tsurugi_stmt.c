@@ -223,6 +223,7 @@ static int pdo_tsurugi_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation o
 		php_tsurugi_raise_impl_error(stmt->dbh, stmt, "HY000");
 		return 0;
 	}
+	S->fetched_col_count = 0;
 	return next_row;
 }
 
@@ -254,9 +255,11 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 	}
 
 	bool next_col;
-	rc = tsurugi_ffi_sql_query_result_next_column(H->context, S->result, &next_col);
-	if (rc != 0) {
-		goto fail;
+	for (; S->fetched_col_count <= colno; S->fetched_col_count++) {
+		rc = tsurugi_ffi_sql_query_result_next_column(H->context, S->result, &next_col);
+		if (rc != 0) {
+			goto fail;
+		}
 	}
 
 	if (!next_col) {
