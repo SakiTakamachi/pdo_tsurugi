@@ -56,7 +56,6 @@ typedef struct {
 	pdo_tsurugi_db_handle *H;
 	TsurugiFfiSqlQueryResultHandle result;
 	TsurugiFfiSqlColumnHandle *col_metadata;
-	zend_long affected_rows;
 	uint32_t col_count;
 	TsurugiFfiSqlPreparedStatementHandle prepared_statement;
 	HashTable *placeholders;

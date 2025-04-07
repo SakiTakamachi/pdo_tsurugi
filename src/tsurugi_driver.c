@@ -157,7 +157,6 @@ static bool tsurugi_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t
 	pdo_tsurugi_stmt *S = ecalloc(1, sizeof(*S));
 
 	S->H = H;
-	S->affected_rows = 0;
 	S->result = NULL;
 	S->col_metadata = NULL;
 	S->prepared_statement = NULL;

@@ -37,7 +37,6 @@ static int pdo_tsurugi_stmt_dtor(pdo_stmt_t *stmt)
 		php_tsurugi_free_col_metadata(stmt);
 		S->col_metadata = NULL;
 	}
-	S->affected_rows = 0;
 
 	if (S->prepared_statement) {
 		tsurugi_ffi_sql_prepared_statement_dispose(S->prepared_statement);
@@ -102,7 +101,7 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 	pdo_tsurugi_db_handle *H = S->H;
 	bool instant_txn = false;
 
-	S->affected_rows = 0;
+	stmt->row_count = 0;
 	if(S->result) {
 		tsurugi_ffi_sql_query_result_dispose(S->result);
 		S->result = NULL;
@@ -165,7 +164,7 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 			int64_t affected_rows;
 			rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, execute_result, &affected_rows);
 			tsurugi_ffi_sql_execute_result_dispose(execute_result);
-			S->affected_rows = affected_rows;
+			stmt->row_count = affected_rows;
 		}
 		for (size_t i = 0; i < S->parameter_count; i++) {
 			tsurugi_ffi_sql_parameter_dispose(parameter_handles[i]);
@@ -195,7 +194,7 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 			int64_t affected_rows;
 			rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, execute_result, &affected_rows);
 			tsurugi_ffi_sql_execute_result_dispose(execute_result);
-			S->affected_rows = affected_rows;
+			stmt->row_count = affected_rows;
 		}
 	}
 
