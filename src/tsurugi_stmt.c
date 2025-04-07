@@ -277,6 +277,7 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 	int32_t ival;
 	int64_t lval;
+	uint64_t ulval;
 	float fval;
 	double dval;
 	const char *cval;
@@ -507,14 +508,14 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 		case TSURUGI_FFI_ATOM_TYPE_OCTET:
 			TsurugiFfiByteArrayHandle octet;
-			size_t octet_size;
+			uint64_t octet_size;
 			rc = tsurugi_ffi_sql_query_result_fetch_octet(H->context, S->result, &octet, &octet_size);
 			if (rc != 0) {
 				goto fail;
 			}
 			char *octet_buf = emalloc(octet_size * 2 + 1);
 			char *octet_ptr = octet_buf;
-			for (size_t i = 0; i < octet_size; i++) {
+			for (uint64_t i = 0; i < octet_size; i++) {
 				octet_ptr += sprintf(octet_ptr, "%02x", (unsigned char) octet[i]);
 			}
 			*octet_ptr = '\0';
@@ -535,14 +536,34 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_TIME_OF_DAY:
-			rc = tsurugi_ffi_sql_query_result_fetch_time_of_day(H->context, S->result, &lval);
+			rc = tsurugi_ffi_sql_query_result_fetch_time_of_day(H->context, S->result, &ulval);
 			if (rc != 0) {
 				goto fail;
 			}
-			lval /= 1000 * 1000 * 1000;
+			ulval /= 1000 * 1000 * 1000;
 			char time_buf[16];
-			snprintf(time_buf, sizeof(time_buf), "%02ld:%02ld:%02ld", lval / 3600, (lval % 3600) / 60, lval % 60);
+			snprintf(time_buf, sizeof(time_buf), "%02ld:%02ld:%02ld", ulval / 3600, (ulval % 3600) / 60, ulval % 60);
 			ZVAL_STRINGL(result, time_buf, strlen(time_buf));
+			break;
+
+		case TSURUGI_FFI_ATOM_TYPE_TIME_OF_DAY_WITH_TIME_ZONE:
+			rc = tsurugi_ffi_sql_query_result_fetch_time_of_day_with_time_zone(H->context, S->result, &ulval, &tz_offset);
+			if (rc != 0) {
+				goto fail;
+			}
+			ulval /= 1000 * 1000 * 1000;
+			char time_of_day_with_tz_buf[16];
+			size_t time_of_day_with_tz_len = snprintf(
+				time_of_day_with_tz_buf, sizeof(time_of_day_with_tz_buf), "%02ld:%02ld:%02ld", ulval / 3600, (ulval % 3600) / 60, ulval % 60);
+
+			char *time_of_day_with_tz_offset_ptr = time_of_day_with_tz_buf + time_of_day_with_tz_len;
+			if (tz_offset >= 0) {
+				*time_of_day_with_tz_offset_ptr++ = '+';
+			} else {
+				*time_of_day_with_tz_offset_ptr++ = '-';
+			}
+			snprintf(time_of_day_with_tz_offset_ptr, 6, "%02d:%02d", tz_offset / 60, tz_offset % 60);
+			ZVAL_STRINGL(result, time_of_day_with_tz_buf, time_of_day_with_tz_len + 6);
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_TIME_POINT:
@@ -577,7 +598,6 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 		case TSURUGI_FFI_ATOM_TYPE_BIT:
 		case TSURUGI_FFI_ATOM_TYPE_DATETIME_INTERVAL:
-		case TSURUGI_FFI_ATOM_TYPE_TIME_OF_DAY_WITH_TIME_ZONE:
 		case TSURUGI_FFI_ATOM_TYPE_CLOB:
 		case TSURUGI_FFI_ATOM_TYPE_BLOB:
 			pdo_raise_impl_error(stmt->dbh, stmt, "HY000", "Unsupported type");

@@ -2,6 +2,7 @@
 #include "php_ini.h"
 #include "php_pdo_tsurugi_int.h"
 #include "zend_portability.h"
+#include "zend_interfaces.h"
 #include "ext/date/php_date.h"
 
 HashTable *pdo_tsurugi_get_placeholders_hash_table(zend_object *obj)
@@ -303,9 +304,6 @@ exponent_out_of_range:
 
 static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, zval *value, zend_long *timestamp, int32_t *timezone_offset, bool time_only)
 {
-	zval datetime;
-	php_date_obj *date_obj;
-
 	if (Z_TYPE_P(value) == IS_LONG) {
 		*timestamp = Z_LVAL_P(value);
 		*timezone_offset = 0;
@@ -322,24 +320,46 @@ static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, zval *value, zend_long *
 		return true;
 	}
 
-	object_init_ex(&datetime, php_date_get_date_ce());
-	if (!php_date_initialize(Z_PHPDATE_P(&datetime), Z_STRVAL_P(value), Z_STRLEN_P(value), NULL, NULL, 0)) {
-		zval_ptr_dtor(&datetime);
+	zval timezone_zv;
+	zend_class_entry *tz_ce = zend_hash_str_find_ptr(CG(class_table), "datetimezone", sizeof("datetimezone") - 1);
+
+	if (!tz_ce) {
+		php_error_docref(NULL, E_ERROR, "DateTimeZone class not found");
+		return FAILURE;
+	}
+
+	object_init_ex(&timezone_zv, tz_ce);
+
+	zval timezone_name;
+	ZVAL_STRING(&timezone_name, "UTC");
+
+	zend_call_method_with_1_params(
+		Z_OBJ(timezone_zv), tz_ce, NULL,
+		"__construct", NULL, &timezone_name);
+
+	zval_ptr_dtor(&timezone_name);
+
+	zval datetime_zv;
+	php_date_obj *date_obj;
+	object_init_ex(&datetime_zv, php_date_get_date_ce());
+	if (!php_date_initialize(Z_PHPDATE_P(&datetime_zv), Z_STRVAL_P(value), Z_STRLEN_P(value), NULL, &timezone_zv, 0)) {
+		zval_ptr_dtor(&datetime_zv);
 		pdo_raise_impl_error(stmt->dbh, stmt, "22007", "Could not parse as datetime");
 		return false;
 	}
 
-	date_obj = Z_PHPDATE_P(&datetime);
+	date_obj = Z_PHPDATE_P(&datetime_zv);
 	if (time_only) {
 		zend_long hours = date_obj->time->h;
 		zend_long minutes = date_obj->time->i;
 		zend_long seconds = date_obj->time->s;
 		*timestamp = (hours * 3600) + (minutes * 60) + seconds;
 	} else {
-		*timestamp = (zend_long) date_obj->time->sse;
+		*timestamp = (zend_long) date_obj->time->sse + date_obj->time->z;
 	}
 	*timezone_offset = date_obj->time->z;
-	zval_ptr_dtor(&datetime);
+	zval_ptr_dtor(&timezone_zv);
+	zval_ptr_dtor(&datetime_zv);
 	return true;
 }
 
