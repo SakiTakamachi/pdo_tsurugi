@@ -246,8 +246,7 @@ static bool php_tsurugi_convert_decimal_to_binary(
 		return true;
 	}
 
-//#ifdef __SIZEOF_INT128__
-#if 0
+#ifdef __SIZEOF_INT128__
 	__int128_t lval = 0;
 	while (num_str_ptr < num_end) {
 		lval = lval * 10 + *num_str_ptr++;
