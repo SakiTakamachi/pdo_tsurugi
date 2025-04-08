@@ -23,6 +23,7 @@ static void php_tsurugi_free_col_metadata(pdo_stmt_t *stmt)
 		}
 	}
 	efree(S->col_metadata);
+	S->col_metadata = NULL;
 }
 
 static int pdo_tsurugi_stmt_dtor(pdo_stmt_t *stmt)
@@ -79,6 +80,9 @@ static bool php_tsurugi_query_result(pdo_stmt_t *stmt)
 	}
 	php_pdo_stmt_set_column_count(stmt, col_count);
 
+	if (S->col_metadata) {
+		php_tsurugi_free_col_metadata(stmt);
+	}
 	S->col_metadata = ecalloc(stmt->column_count, sizeof(TsurugiFfiSqlColumnHandle));
 	for (size_t i = 0; i < stmt->column_count; i++) {
 		rc = tsurugi_ffi_sql_query_result_metadata_get_columns_value(H->context, query_result_metadata, i, &S->col_metadata[i]);
@@ -99,7 +103,6 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 	TsurugiFfiRc rc;
 	pdo_tsurugi_stmt *S = (pdo_tsurugi_stmt*) stmt->driver_data;
 	pdo_tsurugi_db_handle *H = S->H;
-	bool instant_txn = false;
 
 	stmt->row_count = 0;
 	if(S->result) {
@@ -107,13 +110,20 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 		S->result = NULL;
 	}
 
-	if (stmt->dbh->auto_commit && !stmt->dbh->in_txn && !php_tsurugi_begin_instant_txn(stmt->dbh, &instant_txn)) {
+	/* If the next query is executed before all the results of the previous query have been fetched */
+	if (H->in_instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
 		return 0;
 	}
+
+	if (stmt->dbh->auto_commit && !stmt->dbh->in_txn && !php_tsurugi_begin_instant_txn(stmt->dbh)) {
+		return 0;
+	}
+
 	if (!H->transaction) {
 		zend_throw_exception_ex(php_pdo_get_exception(), 0, "There is no active transaction");
 	}
 
+	bool is_select;
 	if (stmt->supports_placeholders = PDO_PLACEHOLDER_NAMED && S->placeholders) {
 		if (S->parameter_count != zend_hash_num_elements(S->placeholders)) {
 			pdo_raise_impl_error(stmt->dbh, stmt, "HY093", "Number of placeholders and parameters does not match");
@@ -133,7 +143,8 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 
 		const char *sql = ZSTR_VAL(stmt->query_string);
 		size_t sql_len = ZSTR_LEN(stmt->query_string);
-		if (sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len)) {
+		is_select = sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len);
+		if (is_select) {
 			/* select query */
 			rc = tsurugi_ffi_sql_client_prepared_query(
 				H->context, H->client, H->transaction, S->prepared_statement, parameter_handles, S->parameter_count, &S->result);
@@ -173,7 +184,8 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 	} else {
 		const char *sql = ZSTR_VAL(stmt->active_query_string);
 		size_t sql_len = ZSTR_LEN(stmt->active_query_string);
-		if (sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len)) {
+		is_select = sql ==  php_memnistr(sql, ZEND_STRL("select"), sql + sql_len);
+		if (is_select) {
 			/* select query */
 			rc = tsurugi_ffi_sql_client_query(H->context, H->client, H->transaction, sql, &S->result);
 			if (rc != 0 || !php_tsurugi_query_result(stmt)) {
@@ -198,7 +210,8 @@ static int pdo_tsurugi_stmt_execute(pdo_stmt_t *stmt)
 		}
 	}
 
-	if (instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
+	/* transaction is required to fetch */
+	if (!is_select && H->in_instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
 		return 0;
 	}
 
@@ -212,6 +225,7 @@ fail:
 static int pdo_tsurugi_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset)
 {
 	pdo_tsurugi_stmt *S = (pdo_tsurugi_stmt*) stmt->driver_data;
+	pdo_tsurugi_db_handle *H = S->H;
 
 	if (!stmt->executed) {
 		return 0;
@@ -224,6 +238,10 @@ static int pdo_tsurugi_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation o
 		return 0;
 	}
 	S->fetched_col_count = 0;
+
+	if (!next_row && H->in_instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
+		return 0;
+	}
 	return next_row;
 }
 
@@ -671,7 +689,15 @@ alloc_retry:
 
 static int pdo_tsurugi_stmt_cursor_closer(pdo_stmt_t *stmt)
 {
-	/* Nothing todo */
+	pdo_tsurugi_stmt *S = (pdo_tsurugi_stmt*) stmt->driver_data;
+	pdo_tsurugi_db_handle *H = S->H;
+	if (H->in_instant_txn && !php_tsurugi_commit_instant_txn(stmt->dbh)) {
+		return 0;
+	}
+	if (S->result) {
+		tsurugi_ffi_sql_query_result_dispose(S->result);
+		S->result = NULL;
+	}
 	return 1;
 }
 
