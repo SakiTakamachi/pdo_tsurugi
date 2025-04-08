@@ -319,12 +319,12 @@ static zend_long tsurugi_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 	rc = tsurugi_ffi_sql_execute_result_get_rows(H->context, result, &affected_rows);
 	tsurugi_ffi_sql_execute_result_dispose(result);
 
-	if (instant_txn && !php_tsurugi_commit_instant_txn(dbh)) {
+	if (rc != 0) {
+		php_tsurugi_error(dbh);
 		return -1;
 	}
 
-	if (rc != 0) {
-		php_tsurugi_error(dbh);
+	if (instant_txn && !php_tsurugi_commit_instant_txn(dbh)) {
 		return -1;
 	}
 
