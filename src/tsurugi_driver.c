@@ -124,16 +124,6 @@ static void tsurugi_handle_closer(pdo_dbh_t *dbh)
 		return;
 	}
 
-	if (H->context) {
-		tsurugi_ffi_context_dispose(H->context);
-	}
-	if (H->session) {
-		tsurugi_ffi_session_dispose(H->session);
-	}
-	if (H->client) {
-		tsurugi_ffi_sql_client_dispose(H->client);
-	}
-
 	if (dbh->in_txn) {
 		if (dbh->auto_commit) {
 			tsurugi_handle_commit(dbh);
@@ -141,6 +131,16 @@ static void tsurugi_handle_closer(pdo_dbh_t *dbh)
 			tsurugi_handle_rollback(dbh);
 		}
 		dbh->in_txn = false;
+	}
+
+	if (H->session) {
+		tsurugi_ffi_session_dispose(H->session);
+	}
+	if (H->client) {
+		tsurugi_ffi_sql_client_dispose(H->client);
+	}
+	if (H->context) {
+		tsurugi_ffi_context_dispose(H->context);
 	}
 
 	if (H->err.msg) {
