@@ -1,0 +1,15 @@
+name: Run tests
+description: Run tests
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        export PDO_TSURUGI_TEST_ENDPOINT=tcp://localhost:12345
+        php src/run-tests.php tests \
+          -g FAIL,BORK,LEAK,XLEAK \
+          --no-progress \
+          --offline \
+          --show-diff \
+          --show-slow 1000 \
+          --set-timeout 120
