@@ -24,6 +24,5 @@ runs:
           libtool \
           pkg-config \
           wget \
-          git \
           cargo \
           protobuf-compiler
