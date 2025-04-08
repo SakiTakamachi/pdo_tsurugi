@@ -330,115 +330,81 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_DECIMAL:
-			TsurugiFfiByteArrayHandle bytes;
-			uint32_t bytes_size;
+			int64_t upper;
+			uint64_t lower;
 			int32_t exponent;
-			rc = tsurugi_ffi_sql_query_result_fetch_decimal(H->context, S->result, &bytes, &bytes_size, &lval, &exponent);
+			rc = tsurugi_ffi_sql_query_result_fetch_decimal_i128(H->context, S->result, &upper, &lower, &exponent);
 			if (rc != 0) {
 				goto fail;
 			}
 
-			char *buf = NULL;
-			uint64_t *v = NULL;
-			char *tmp_str;
+			char decimal_buf[64];
+			char *tmp_str = decimal_buf + 63;
 			size_t len = 0;
 			bool is_negative = false;
-			if (bytes_size > 0) {
-				is_negative = (int8_t) bytes[0] < 0;
 
-				TsurugiFfiByteArrayHandle b_ptr = bytes;
-				TsurugiFfiByteArrayHandle b_end = bytes + bytes_size;
-				size_t vsize = (bytes_size + sizeof(uint32_t) - 1) / sizeof(uint32_t);
-				v = emalloc(vsize * sizeof(uint64_t));
-				bool has_leftover = bytes_size % sizeof(uint32_t);
-				size_t bulk_loop = has_leftover ? vsize - 1 : vsize;
-				for (size_t i = 0; i < bulk_loop; i++) {
-					b_end -= sizeof(uint32_t);
-					memcpy(&v[i], b_end, sizeof(uint32_t));
-#ifndef WORDS_BIGENDIAN
-					v[i] = ZEND_BYTES_SWAP64(v[i]);
-#endif
-					if (is_negative) {
-						v[i] = ~v[i];
-					}
-					v[i] >>= 32;
+#ifdef __SIZEOF_INT128__
+			__int128_t llval = (__int128_t) upper << 64 | lower;
+			if (llval < 0) {
+				is_negative = true;
+				llval = -llval;
+			}
+			if (UNEXPECTED(llval == 0 && exponent == 0)) {
+				*tmp_str-- = '0';
+				len = 1;
+			} else {
+				while (llval > 0) {
+					char tmp = llval % 10 + '0';
+					*tmp_str-- = tmp;
+					llval /= 10;
+					len++;
 				}
-
-				size_t max_vindex = vsize - 1;
-				if (has_leftover) {
-					v[max_vindex] = 0;
-#ifdef WORDS_BIGENDIAN
-					while (b_end > bytes) {
-						b_end--;
-						v[max_vindex] <<= 8;
-						if (is_negative) {
-							v[max_vindex] |= (~*b_end & 0xFF);
-						} else {
-							v[max_vindex] |= *b_end;
-						}
-					}
+			}
+			tmp_str++;
 #else
-					while (b_end > bytes) {
-						v[max_vindex] <<= 8;
-						if (is_negative) {
-							v[max_vindex] |= (~*bytes & 0xFF);
-						} else {
-							v[max_vindex] |= *bytes;
-						}
-						bytes++;
-					}
-#endif
+			uint64_t parts[4] = {
+				(uint32_t) ((uint64_t) upper >> 32),
+				(uint32_t) ((uint64_t) upper & 0xFFFFFFFF),
+				(uint32_t) (lower >> 32),
+				(uint32_t) (lower & 0xFFFFFFFF)
+			};
+			if (upper < 0) {
+				is_negative = true;
+				for (int i = 0; i < 4; ++i) {
+					parts[i] = ~parts[i] & 0xFFFFFFFF;
 				}
-
-				if (is_negative) {
-					v[0] += 1;
+				for (int i = 3; i >= 0; --i) {
+					parts[i] += 1;
+					parts[i] &= 0xFFFFFFFF;
+					if (parts[i] != 0) break;
 				}
+			}
 
-				while (v[max_vindex] == 0 && max_vindex > 0) {
-					max_vindex--;
-				}
-
-				buf = emalloc(vsize * 10);
-				char *tmp_ptr = buf;
-				char *tmp_last = buf + vsize * 10 - 1;
+			if (upper == 0 && lower == 0) {
+				*tmp_str-- = '0';
+				len = 1;
+			} else {
 				do {
 					uint64_t carry = 0;
-					for (size_t i = max_vindex; i > 0; i--) {
-						carry = v[i] % 10;
-						v[i - 1] += carry * 0x100000000;
-						v[i] /= 10;
+					size_t min_parts_index = 0;
+					for (int i = min_parts_index; i < 3; ++i) {
+						carry = parts[i] % 10;
+						parts[i + 1] += carry * 0x100000000;
+						parts[i] /= 10;
 					}
-					*tmp_last-- = (v[0] % 10) + '0';
-					v[0] /= 10;
+					*tmp_str-- = (parts[3] % 10) + '0';
+					parts[3] /= 10;
 					len++;
-					while (v[max_vindex] == 0 && max_vindex > 0) {
-						max_vindex--;
+					while (parts[min_parts_index] == 0 && min_parts_index < 3) {
+						min_parts_index++;
 					}
-					if (max_vindex == 0 && v[0] == 0) {
+					if (min_parts_index == 3 && parts[3] == 0) {
 						break;
 					}
 				} while (1);
-
-				tmp_str = tmp_last + 1;
-			} else {
-				if (lval < 0) {
-					is_negative = true;
-					lval = -lval;
-				}
-				buf = emalloc(32);
-				tmp_str = buf + 31;
-				if (UNEXPECTED(lval == 0 && exponent == 0)) {
-					*tmp_str-- = '0';
-					len++;
-				} else {
-					while (lval > 0) {
-						*tmp_str-- = (lval % 10) + '0';
-						lval /= 10;
-						len++;
-					}
-				}
-				tmp_str++;
 			}
+			tmp_str++;
+#endif
 
 			size_t leading_zeros = 0;
 			size_t trailing_zeros = 0;
@@ -496,13 +462,6 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 			*str_ptr = '\0';
 			ZVAL_STR(result, str);
-
-			if (buf) {
-				efree(buf);	
-			}
-			if (v) {
-				efree(v);
-			}
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_CHARACTER:
