@@ -277,6 +277,7 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 		return 1;
 	}
 
+	bool bval;
 	int32_t ival;
 	int64_t lval;
 	uint64_t ulval;
@@ -289,7 +290,11 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 
 	switch (atom_type) {
 		case TSURUGI_FFI_ATOM_TYPE_BOOLEAN:
-			/* Not implemented */
+			rc = tsurugi_ffi_sql_query_result_fetch_boolean(H->context, S->result, &bval);
+			if (rc != 0) {
+				goto fail;
+			}
+			ZVAL_BOOL(result, bval);
 			break;
 
 		case TSURUGI_FFI_ATOM_TYPE_INT4:
