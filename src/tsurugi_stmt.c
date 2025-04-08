@@ -23,6 +23,7 @@ static void php_tsurugi_free_col_metadata(pdo_stmt_t *stmt)
 		}
 	}
 	efree(S->col_metadata);
+	S->col_metadata = NULL;
 }
 
 static int pdo_tsurugi_stmt_dtor(pdo_stmt_t *stmt)
@@ -79,6 +80,9 @@ static bool php_tsurugi_query_result(pdo_stmt_t *stmt)
 	}
 	php_pdo_stmt_set_column_count(stmt, col_count);
 
+	if (S->col_metadata) {
+		php_tsurugi_free_col_metadata(stmt);
+	}
 	S->col_metadata = ecalloc(stmt->column_count, sizeof(TsurugiFfiSqlColumnHandle));
 	for (size_t i = 0; i < stmt->column_count; i++) {
 		rc = tsurugi_ffi_sql_query_result_metadata_get_columns_value(H->context, query_result_metadata, i, &S->col_metadata[i]);
