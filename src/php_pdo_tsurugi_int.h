@@ -26,6 +26,7 @@ typedef struct {
 	TsurugiFfiSqlClientHandle client;
 	TsurugiFfiTransactionHandle transaction;
 	TsurugiFfiTransactionType transaction_type;
+	bool in_instant_txn;
 } pdo_tsurugi_db_handle;
 
 typedef enum {
@@ -78,7 +79,7 @@ void php_tsurugi_set_error(
 
 void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state);
 
-bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh, bool *instant_txn);
+bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh);
 bool php_tsurugi_commit_instant_txn(pdo_dbh_t *dbh);
 
 HashTable *pdo_tsurugi_get_placeholders_hash_table(zend_object *obj);

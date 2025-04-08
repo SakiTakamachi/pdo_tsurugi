@@ -97,11 +97,12 @@ static bool tsurugi_handle_begin(pdo_dbh_t *dbh);
 static bool tsurugi_handle_commit(pdo_dbh_t *dbh);
 static bool tsurugi_handle_rollback(pdo_dbh_t *dbh);
 
-bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh, bool *instant_txn)
+bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh)
 {
+	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
 	if (tsurugi_handle_begin(dbh)) {
 		dbh->in_txn = 1;
-		*instant_txn = true;
+		H->in_instant_txn = true;
 		return true;
 	}
 	return false;
@@ -109,8 +110,10 @@ bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh, bool *instant_txn)
 
 bool php_tsurugi_commit_instant_txn(pdo_dbh_t *dbh)
 {
+	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
 	if (tsurugi_handle_commit(dbh)) {
 		dbh->in_txn = 0;
+		H->in_instant_txn = false;
 		return true;
 	}
 	return false;
@@ -133,6 +136,7 @@ static void tsurugi_handle_closer(pdo_dbh_t *dbh)
 		dbh->in_txn = false;
 	}
 
+	H->in_instant_txn = false;
 	if (H->session) {
 		tsurugi_ffi_session_dispose(H->session);
 	}
@@ -297,9 +301,13 @@ static zend_long tsurugi_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 {
 	TsurugiFfiRc rc;
 	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
-	bool instant_txn = false;
 
-	if (dbh->auto_commit && !dbh->in_txn && !php_tsurugi_begin_instant_txn(dbh, &instant_txn)) {
+	/* If the next query is executed before all the results of the previous query have been fetched */
+	if (H->in_instant_txn && !php_tsurugi_commit_instant_txn(dbh)) {
+		return -1;
+	}
+
+	if (dbh->auto_commit && !dbh->in_txn && !php_tsurugi_begin_instant_txn(dbh)) {
 		return -1;
 	}
 
@@ -324,7 +332,7 @@ static zend_long tsurugi_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 		return -1;
 	}
 
-	if (instant_txn && !php_tsurugi_commit_instant_txn(dbh)) {
+	if (H->in_instant_txn && !php_tsurugi_commit_instant_txn(dbh)) {
 		return -1;
 	}
 
