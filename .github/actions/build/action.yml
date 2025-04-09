@@ -24,6 +24,6 @@ runs:
       run: |
         cd src
         phpize
-        ./configure --with-pdo_tsurugi="${GITHUB_WORKSPACE}/tsubakuro-rust"
+        ./configure --with-lib-dir="${GITHUB_WORKSPACE}/tsubakuro-rust"
         make -j$(nproc)
         sudo make install
