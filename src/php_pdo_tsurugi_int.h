@@ -82,11 +82,11 @@ void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state)
 bool php_tsurugi_begin_instant_txn(pdo_dbh_t *dbh);
 bool php_tsurugi_commit_instant_txn(pdo_dbh_t *dbh);
 
-HashTable *pdo_tsurugi_get_placeholders_hash_table(zend_object *obj);
+HashTable *pdo_tsurugi_get_placeholders_hash_table(const zend_object *obj);
 bool pdo_tsurugi_register_placeholders(
-	pdo_dbh_t *dbh, zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type);
+	pdo_dbh_t *dbh, const zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type);
 bool pdo_tsurugi_register_parameter(
-	pdo_stmt_t *stmt, zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value);
+	pdo_stmt_t *stmt, const zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value);
 
 static zend_always_inline bool php_tsurugi_has_error(pdo_dbh_t *dbh)
 {

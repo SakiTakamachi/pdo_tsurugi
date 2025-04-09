@@ -5,7 +5,7 @@
 #include "zend_interfaces.h"
 #include "ext/date/php_date.h"
 
-HashTable *pdo_tsurugi_get_placeholders_hash_table(zend_object *obj)
+HashTable *pdo_tsurugi_get_placeholders_hash_table(const zend_object *obj)
 {
 	pdo_tsurugi_placeholders *intern = (pdo_tsurugi_placeholders *) ((char*) (obj) - XtOffsetOf(pdo_tsurugi_placeholders, std));
 	return intern->placeholders;
@@ -27,7 +27,7 @@ static zend_always_inline void pdo_tsurugi_add_named_placeholder_method(INTERNAL
 
 	zval type_zv;
 	ZVAL_LONG(&type_zv, type);
-	zval *ret = zend_hash_add(intern->placeholders, str, &type_zv);
+	const zval *ret = zend_hash_add(intern->placeholders, str, &type_zv);
 
 	if (ret = NULL) {
 		zend_value_error("Duplicate placeholder");
@@ -53,7 +53,7 @@ static zend_always_inline void pdo_tsurugi_add_positional_placeholder_method(INT
 
 	zval type_zv;
 	ZVAL_LONG(&type_zv, type);
-	zval *ret = zend_hash_index_add(intern->placeholders, lval, &type_zv);
+	const zval *ret = zend_hash_index_add(intern->placeholders, lval, &type_zv);
 
 	if (ret = NULL) {
 		zend_value_error("Duplicate placeholder");
@@ -88,7 +88,7 @@ PDO_TSURUGI_PLACEHOLDER_METHOD(addTimestamp, PDO_TSURUGI_PLACEHOLDER_TYPE_TIMEST
 PDO_TSURUGI_PLACEHOLDER_METHOD(addTimestampWithTimeZone, PDO_TSURUGI_PLACEHOLDER_TYPE_TIMESTAMP_WITH_TIME_ZONE)
 
 bool pdo_tsurugi_register_placeholders(
-	pdo_dbh_t *dbh, zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type)
+	pdo_dbh_t *dbh, const zval *placeholder_name, TsurugiFfiSqlPlaceholderHandle *placeholder_handle, pdo_tsurugi_data_type type)
 {
 	TsurugiFfiRc rc;
 	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
@@ -149,8 +149,9 @@ static bool php_tsurugi_convert_decimal_to_binary(
 	size_t len = ZSTR_LEN(str);
 
 	char *num_str = emalloc(len);
-	size_t num_str_len = 0;
 	char *num_str_ptr = num_str;
+	size_t num_str_len = 0;
+
 	char *decimal_point_ptr = NULL;
 	char *exponent_ptr = NULL;
 	bool exponent_is_negative = false;
@@ -190,7 +191,7 @@ static bool php_tsurugi_convert_decimal_to_binary(
 		ptr++;
 	}
 	char *num_end = num_str + num_str_len;
-	char *end = ptr;
+	const char *end = ptr;
 
 	size_t exponent_len = len - (exponent_ptr - ZSTR_VAL(str));
 	int64_t exponent_abs_max = INT_MAX;
@@ -301,7 +302,7 @@ exponent_out_of_range:
 	return false;
 }
 
-static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, zval *value, zend_long *timestamp, int32_t *timezone_offset, bool time_only)
+static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, const zval *value, zend_long *timestamp, int32_t *timezone_offset, bool time_only)
 {
 	if (Z_TYPE_P(value) == IS_LONG) {
 		*timestamp = Z_LVAL_P(value);
@@ -363,11 +364,11 @@ static bool php_tsurugi_get_timestamp(pdo_stmt_t *stmt, zval *value, zend_long *
 }
 
 bool pdo_tsurugi_register_parameter(
-	pdo_stmt_t *stmt, zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value)
+	pdo_stmt_t *stmt, const zend_string *parameter_name, TsurugiFfiSqlParameterHandle *parameter_handle, pdo_tsurugi_data_type type, zval *value)
 {
 	TsurugiFfiRc rc;
 	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) stmt->dbh->driver_data;
-	char *parameter_name_str = ZSTR_VAL(parameter_name) + 1;
+	const char *parameter_name_str = ZSTR_VAL(parameter_name) + 1;
 
 	if (Z_TYPE_P(value) == IS_NULL) {
 		rc = tsurugi_ffi_sql_parameter_null(H->context, parameter_name_str, parameter_handle);

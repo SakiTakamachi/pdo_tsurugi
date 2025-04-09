@@ -302,7 +302,7 @@ static int pdo_tsurugi_stmt_get_col(pdo_stmt_t *stmt, int colno, zval *result, e
 	float fval;
 	double dval;
 	const char *cval;
-	struct tm *t;
+	const struct tm *t;
 	uint32_t nano_sec;
 	int32_t tz_offset;
 
@@ -616,7 +616,7 @@ static int pdo_tsurugi_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_
 		return 1;
 	}
 
-	zval *placeholder = NULL;
+	const zval *placeholder = NULL;
 	zend_string *param_name = NULL;
 	bool already_alloc_retry = false;
 	switch (event_type) {

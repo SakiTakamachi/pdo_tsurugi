@@ -34,7 +34,7 @@ void php_tsurugi_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, char *state)
 }
 
 void php_tsurugi_set_error(
-	pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *state, const size_t state_len, const char *msg, const size_t msg_len)
+	pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *state, size_t state_len, const char *msg, const size_t msg_len)
 {
 	pdo_error_type *error_code = stmt ? &stmt->error_code : &dbh->error_code;
 	pdo_tsurugi_db_handle *H = (pdo_tsurugi_db_handle *) dbh->driver_data;
@@ -452,11 +452,11 @@ fail:
 	return false;
 }
 
-static zend_always_inline bool php_tsurugi_get_transaction_type(zval *val, TsurugiFfiTransactionType *txn_type)
+static zend_always_inline bool php_tsurugi_get_transaction_type(const zval *val, TsurugiFfiTransactionType *txn_type)
 {
 	if (Z_TYPE_P(val) == IS_OBJECT && instanceof_function(Z_OBJCE_P(val), pdo_tsurugi_transaction_type_ce)) {
-		zval *case_name = zend_enum_fetch_case_name(Z_OBJ_P(val));
-		zend_string *type_name = Z_STR_P(case_name);
+		const zval *case_name = zend_enum_fetch_case_name(Z_OBJ_P(val));
+		const zend_string *type_name = Z_STR_P(case_name);
 		switch (ZSTR_VAL(type_name)[0]) {
 			case 'S':
 				*txn_type = TSURUGI_FFI_TRANSACTION_TYPE_SHORT;
