@@ -35,15 +35,15 @@ jobs:
       - name: Install cbindgen x86
         if: ${{ inputs.arch == 'x86' }}
         run: |
-          wget http://launchpadlibrarian.net/751133175/cbindgen_0.27.0-1ubuntu1_amd64.deb && \
-          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_amd64.deb && \
+          wget http://launchpadlibrarian.net/751133175/cbindgen_0.27.0-1ubuntu1_amd64.deb
+          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_amd64.deb
           rm cbindgen_0.27.0-1ubuntu1_amd64.deb
 
       - name: Install cbindgen arm
         if: ${{ inputs.arch == 'arm' }}
         run: |
-          wget http://launchpadlibrarian.net/751133648/cbindgen_0.27.0-1ubuntu1_arm64.deb && \
-          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_arm64.deb && \
+          wget http://launchpadlibrarian.net/751133648/cbindgen_0.27.0-1ubuntu1_arm64.deb
+          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_arm64.deb
           rm cbindgen_0.27.0-1ubuntu1_arm64.deb
 
       - name: Build

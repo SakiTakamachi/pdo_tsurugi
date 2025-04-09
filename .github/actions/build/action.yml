@@ -14,16 +14,16 @@ runs:
     - name: Build tsubakuro
       shell: bash
       run: |
-        git clone --depth=1 https://github.com/project-tsurugi/tsubakuro-rust.git tsubakuro-rust && \
-        cd tsubakuro-rust/tsubakuro-rust-ffi && \
-        cargo build --release && \
+        git clone --depth=1 https://github.com/project-tsurugi/tsubakuro-rust.git tsubakuro-rust
+        cd tsubakuro-rust/tsubakuro-rust-ffi
+        cargo build --release
         cbindgen --lang C --config "${GITHUB_WORKSPACE}/cbindgen.toml" --output tsubakuro-rust-ffi.h
 
     - name: Build and install package
       shell: bash
       run: |
-        cd src && \
-        phpize && \
-        ./configure --with-pdo_tsurugi="${GITHUB_WORKSPACE}/tsubakuro-rust" && \
-        make -j$(nproc) && \
+        cd src
+        phpize
+        ./configure --with-pdo_tsurugi="${GITHUB_WORKSPACE}/tsubakuro-rust"
+        make -j$(nproc)
         sudo make install
