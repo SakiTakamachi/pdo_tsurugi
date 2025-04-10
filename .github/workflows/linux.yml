@@ -6,6 +6,9 @@ on:
       php-version:
         required: true
         type: string
+      build-type:
+        required: true
+        type: string
       arch:
         required: true
         type: string
@@ -31,6 +34,7 @@ jobs:
         uses: ./.github/actions/install
         with:
           php-version: ${{ inputs.php-version }}
+          build-type: ${{ inputs.build-type }}
 
       - name: Install cbindgen x86
         if: ${{ inputs.arch == 'x86' }}
