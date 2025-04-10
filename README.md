@@ -1,44 +1,32 @@
 # PDO TSURUGI
 
+[![Latest Stable Version](https://poser.pugx.org/pdo-tsurugi/pdo-tsurugi/v)](https://packagist.org/packages/pdo-tsurugi/pdo-tsurugi)
+[![License](https://poser.pugx.org/pdo-tsurugi/pdo-tsurugi/license)](https://packagist.org/packages/pdo-tsurugi/pdo-tsurugi)
+[![PHP Version Require](https://poser.pugx.org/pdo-tsurugi/pdo-tsurugi/require/php)](https://packagist.org/packages/pdo-tsurugi/pdo-tsurugi)
+
 This is a PDO driver for [Tsurugi DB](https://github.com/project-tsurugi/tsurugidb).
+This extension requires [tsubakuro-rust](https://github.com/project-tsurugi/tsubakuro-rust). Please refer to the [tsubakuro-rust-ffi C example](https://github.com/project-tsurugi/tsubakuro-rust/tree/master/tsubakuro-rust-ffi/example/c) for instructions on how to install tsubakuro-rust.
+
 The minimum functionality has been implemented, but it is still in development.
 
-# How to use the development version
+## Classes
 
-1. Clone this repository
-
-```
-git clone https://github.com/SakiTakamachi/pdo_tsurugi.git
-```
-
-2. Go to the src directory and run `phpize`
+This extension includes the following classes:
 
 ```
-cd pdo_tsurugi/src
-phpize
+Pdo\Tsurugi
+Pdo\Tsurugi\TransactionType
+Pdo\Tsurugi\NamedPlaceholders
+Pdo\Tsurugi\PositionalPlaceholders
 ```
 
-3. Run `configure`. At this time, pass the path to the `tsubakuro-rust` directory as an option.
-For instructions on how to install `tubakuro-rust`, please refer to [tsubakuro-rust repository](https://github.com/project-tsurugi/tsubakuro-rust).
+## How to use the development version using PIE
 
 ```
-./configure --with-pdo_tsurugi=/tsubakuro-rust
+pie install pdo-tsurugi/pdo-tsurugi:dev-master --with-lib-dir=YOUR_TSUBAKURO_RUST_DIR
 ```
 
-4. Build and install
-
-```
-make
-make install
-```
-
-5. Add the following to php.ini:
-
-```
-extension=pdo_tsurugi.so
-```
-
-# Code Example
+## Code Example
 
 ```
 <?php
