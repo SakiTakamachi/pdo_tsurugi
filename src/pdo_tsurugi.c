@@ -27,7 +27,7 @@ static const zend_module_dep pdo_tsurugi_deps[] = {
 zend_module_entry pdo_tsurugi_module_entry = {
 	STANDARD_MODULE_HEADER_EX, NULL,
 	pdo_tsurugi_deps,
-	"PDO_Tsurugi",
+	"pdo_tsurugi",
 	NULL,
 	PHP_MINIT(pdo_tsurugi),
 	PHP_MSHUTDOWN(pdo_tsurugi),
