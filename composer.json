@@ -1,0 +1,21 @@
+{
+    "name": "pdo-tsurugi/pdo-tsurugi",
+    "description": "PDO driver for Tsurugi DB",
+    "type": "php-ext",
+    "license": "MIT",
+    "php-ext": {
+        "extension-name": "pdo_tsurugi",
+        "build-path": "src",
+        "configure-options": [
+            {
+                "name": "with-lib-dir",
+                "description": "Specify tsubakuro-rust directory",
+                "needs-value": true
+            }
+        ]
+    },
+    "require": {
+        "php": ">=8.4",
+        "ext-pdo": "*"
+    }
+}

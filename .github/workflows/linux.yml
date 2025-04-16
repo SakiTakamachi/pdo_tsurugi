@@ -1,0 +1,57 @@
+name: Linux Workflow
+
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        required: true
+        type: string
+      build-type:
+        required: true
+        type: string
+      arch:
+        required: true
+        type: string
+      runner:
+        required: true
+        type: string
+
+jobs:
+  tests:
+    name: Tests on Linux
+    runs-on: ${{ inputs.runner }}
+
+    services:
+      tsurugi-db:
+        image: ghcr.io/project-tsurugi/tsurugidb:1.3.0
+        ports:
+          - 12345:12345
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: ./.github/actions/install
+        with:
+          php-version: ${{ inputs.php-version }}
+          build-type: ${{ inputs.build-type }}
+
+      - name: Install cbindgen x86
+        if: ${{ inputs.arch == 'x86' }}
+        run: |
+          wget http://launchpadlibrarian.net/751133175/cbindgen_0.27.0-1ubuntu1_amd64.deb
+          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_amd64.deb
+          rm cbindgen_0.27.0-1ubuntu1_amd64.deb
+
+      - name: Install cbindgen arm
+        if: ${{ inputs.arch == 'arm' }}
+        run: |
+          wget http://launchpadlibrarian.net/751133648/cbindgen_0.27.0-1ubuntu1_arm64.deb
+          sudo dpkg -i cbindgen_0.27.0-1ubuntu1_arm64.deb
+          rm cbindgen_0.27.0-1ubuntu1_arm64.deb
+
+      - name: Build
+        uses: ./.github/actions/build
+
+      - name: Run tests
+        uses: ./.github/actions/tests

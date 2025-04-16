@@ -1,0 +1,36 @@
+name: Push
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.url || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  Linux-64:
+    name: Tests on Linux 64-bit
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.4', '8.5']
+        build-type: ['nts', 'zts']
+        arch: [x86]
+        include:
+          - arch: x86
+            runner: ubuntu-24.04
+
+    uses: ./.github/workflows/linux.yml
+    with:
+      php-version: ${{ matrix.php-version }}
+      build-type: ${{ matrix.build-type }}
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}

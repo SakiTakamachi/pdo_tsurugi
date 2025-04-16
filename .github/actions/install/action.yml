@@ -1,0 +1,45 @@
+name: Install
+description: Install dependencies for building and PHP
+inputs:
+  php-version:
+    required: true
+    description: "PHP version to use"
+  build-type:
+    required: true
+    description: "Build type (nts or zts)"
+runs:
+  using: composite
+  steps:
+    - name: Install PHP with extensions NTS
+      if: ${{ inputs.build-type == 'nts' }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        ini-values: assert.exception=1, zend.assertions=1, error_reporting=-1, log_errors_max_len=0, display_errors=On, extension=pdo_tsurugi.so
+        tools: none
+      env:
+        phpts: nts
+
+    - name: Install PHP with extensions ZTS
+      if: ${{ inputs.build-type == 'zts' }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        ini-values: assert.exception=1, zend.assertions=1, error_reporting=-1, log_errors_max_len=0, display_errors=On, extension=pdo_tsurugi.so
+        tools: none
+      env:
+        phpts: zts
+
+    - name: apt
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          autoconf \
+          libtool \
+          pkg-config \
+          wget \
+          git \
+          cargo \
+          protobuf-compiler
